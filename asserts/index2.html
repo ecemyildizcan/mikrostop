@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mikrop Avcıları: Büyük Görev</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #0f172a;
+            overflow: hidden;
+            color: #f8fafc;
+            margin: 0;
+            height: 100vh;
+        }
+        .font-fredoka { font-family: 'Fredoka One', cursive; }
+        
+        /* Arka Plan Katmanları */
+        #bg-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -10;
+        }
+
+        /* Temiz Oda (En Altta) */
+        #clean-bg {
+            position: absolute;
+            inset: 0;
+            background-image: url('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/end.JPEG');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Kirli Oda Parçaları (Üstte) */
+        #dirty-bg-container {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .dirty-slice {
+            height: 100%;
+            flex: 1;
+            background-image: url('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/start.JPEG');
+            background-size: 100vw 100vh; /* Ekran boyutuna sabitleme */
+            background-repeat: no-repeat;
+            transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+            border-right: 1px solid rgba(0,0,0,0.05);
+        }
+
+        /* Sarsıntı ve Hasar Efekti */
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .germ-hit {
+            animation: hitFlash 0.5s ease-out;
+            filter: brightness(1.5) sepia(1) saturate(5) hue-rotate(-50deg);
+        }
+        @keyframes hitFlash {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.8) rotate(10deg); }
+            100% { transform: scale(1); }
+        }
+
+        /* Sabun Yağmuru */
+        .soap-particle {
+            position: fixed;
+            top: -50px;
+            font-size: 2rem;
+            z-index: 100;
+            pointer-events: none;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to { transform: translateY(110vh) rotate(360deg); }
+        }
+
+        .damage-popup {
+            position: absolute;
+            color: #ef4444;
+            font-weight: 900;
+            font-size: 2rem;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            z-index: 60;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-100px); }
+        }
+
+        .hero-avatar {
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #3b82f6;
+            background-color: white;
+            transition: all 0.3s;
+        }
+
+        .pulse-anim {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+
+        .btn-game {
+            transition: all 0.2s;
+            border-bottom: 6px solid rgba(0,0,0,0.3);
+        }
+        .btn-game:active {
+            transform: translateY(4px);
+            border-bottom-width: 2px;
+        }
+        
+        .progress-bar-fill {
+            transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(8px);
+            border: 4px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Dinamik Arka Plan Sistemi -->
+    <div id="bg-container">
+        <div id="clean-bg"></div>
+        <div id="dirty-bg-container">
+            <!-- JavaScript ile 6 parça buraya eklenecek -->
+        </div>
+    </div>
+
+    <div id="soap-rain-container"></div>
+
+    <div id="game-container" class="glass-panel rounded-[3rem] shadow-2xl w-full max-w-2xl overflow-hidden relative">
+        
+        <!-- HUD -->
+        <div id="hud" class="hidden bg-slate-900/60 p-5 flex justify-between items-center border-b-2 border-white/10">
+            <div class="flex flex-col gap-1">
+                <div id="badge-display" class="flex flex-wrap gap-1 text-2xl min-w-[100px] min-h-[32px]"></div>
+                <div class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Temizlik Rozetleri</div>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <div id="level-title" class="font-fredoka text-blue-400 text-lg uppercase">BÖLÜM 1</div>
+                <div class="w-32 bg-slate-700/50 h-3 rounded-full overflow-hidden mt-1 border border-white/10">
+                    <div id="progress-bar" class="progress-bar-fill bg-blue-500 h-full w-0"></div>
+                </div>
+            </div>
+
+            <div class="text-right">
+                <div id="score-display" class="font-fredoka text-yellow-400 text-2xl">0</div>
+                <div class="text-xs font-bold text-slate-300 uppercase tracking-widest">Skor</div>
+            </div>
+        </div>
+
+        <!-- Sahne Area -->
+        <div id="content-area" class="p-8 min-h-[500px] flex flex-col items-center justify-center text-center">
+            
+            <!-- Başlangıç -->
+            <div id="start-screen" class="space-y-8">
+                <div class="relative inline-block">
+                    <h1 class="text-6xl font-fredoka text-white drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)] leading-tight">MİKROP<br><span class="text-blue-500 text-7xl">AVCISI</span></h1>
+                    <div class="absolute -top-6 -right-6 text-5xl animate-bounce">🧼</div>
+                </div>
+                <p class="text-xl text-white font-bold max-w-sm mx-auto drop-shadow-md">Kötü kalpli mikroplar odayı kirletti! <br>Doğru cevaplarla odayı temizle!</p>
+                
+                <div class="flex justify-center items-center gap-8">
+                     <div class="flex flex-col items-center gap-2">
+                        <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" alt="Kahraman" class="hero-avatar shadow-2xl pulse-anim border-blue-400">
+                        <span class="text-xs font-black text-blue-400 bg-slate-900/80 px-2 py-0.5 rounded">KAHRAMAN</span>
+                     </div>
+                     <span class="text-4xl text-white font-fredoka drop-shadow-lg">VS</span>
+                     <div class="flex flex-col items-center gap-2">
+                        <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" alt="Mikrop" class="hero-avatar shadow-2xl pulse-anim border-red-500">
+                        <span class="text-xs font-black text-red-500 bg-slate-900/80 px-2 py-0.5 rounded">MİKROP</span>
+                     </div>
+                </div>
+
+                <button onclick="startGame()" class="btn-game bg-blue-600 hover:bg-blue-500 text-white font-fredoka text-3xl py-6 px-16 rounded-full shadow-2xl mt-4 transform hover:scale-105 transition-transform">
+                    TEMİZLİĞE BAŞLA!
+                </button>
+            </div>
+
+            <!-- Soru Paneli -->
+            <div id="question-screen" class="hidden w-full space-y-6">
+                <div id="boss-area" class="flex justify-around items-center mb-8 bg-black/30 p-6 rounded-3xl relative">
+                    <div class="flex flex-col items-center">
+                        <div class="w-20 h-2 bg-slate-700 rounded-full mb-2 overflow-hidden border border-white/10">
+                            <div class="bg-green-500 h-full w-full"></div>
+                        </div>
+                        <img id="hero-img" src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" alt="Kahraman" class="hero-avatar pulse-anim">
+                        <span class="bg-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase mt-1">Kahraman</span>
+                    </div>
+
+                    <div class="text-2xl font-fredoka text-white/30 italic">VS</div>
+
+                    <div class="flex flex-col items-center relative">
+                        <div id="germ-hp-container" class="w-24 h-3 bg-slate-900 rounded-full mb-2 overflow-hidden border-2 border-white/20">
+                            <div id="germ-hp-bar" class="bg-red-500 h-full w-full transition-all duration-500"></div>
+                        </div>
+                        <div id="germ-container" class="relative">
+                            <img id="germ-img" src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" alt="Mikrop" class="hero-avatar border-red-600">
+                        </div>
+                        <span class="bg-red-600 px-3 py-1 rounded-full text-[10px] font-black uppercase mt-1">Kötü Mikrop</span>
+                    </div>
+                </div>
+
+                <h2 id="question-text" class="text-2xl md:text-3xl font-bold text-white mb-6 leading-relaxed min-h-[100px] flex items-center justify-center drop-shadow-lg">Soru?</h2>
+                
+                <div id="options-container" class="grid grid-cols-1 gap-4 w-full max-w-md mx-auto"></div>
+            </div>
+
+            <!-- Final Ekranı -->
+            <div id="result-screen" class="hidden space-y-8 py-10">
+                <h2 id="final-title" class="text-6xl font-fredoka text-yellow-400 drop-shadow-2xl">ODA TERTEMİZ!</h2>
+                <div class="text-9xl animate-bounce">🏆</div>
+                <div id="final-stats" class="text-2xl font-bold text-white bg-blue-900/40 p-8 rounded-[2.5rem] border-4 border-blue-400/30 backdrop-blur-md"></div>
+                
+                <div class="flex flex-col gap-4 items-center">
+                    <button onclick="downloadResults()" class="btn-game bg-amber-500 hover:bg-amber-400 text-white font-fredoka text-xl py-4 px-10 rounded-full shadow-2xl flex items-center gap-2">
+                        📊 RAPORU İNDİR
+                    </button>
+                    <button onclick="location.reload()" class="btn-game bg-green-600 hover:bg-green-500 text-white font-fredoka text-xl py-4 px-10 rounded-full shadow-xl">
+                        YENİDEN OYNA
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Overlay -->
+        <div id="feedback-overlay" class="hidden absolute inset-0 flex items-center justify-center bg-slate-950/90 z-50">
+            <div id="feedback-content" class="flex flex-col items-center text-center p-6">
+                <div id="success-area" class="hidden mb-4">
+                     <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" alt="Kahraman" class="w-40 h-40 rounded-full border-8 border-blue-500 bg-white shadow-2xl">
+                     <div class="text-8xl mt-4 animate-bounce">🧼✨</div>
+                </div>
+                <div id="fail-area" class="hidden mb-4">
+                     <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" alt="Mikrop" class="w-40 h-40 rounded-full border-8 border-red-600 bg-white shadow-2xl">
+                     <div class="text-8xl mt-4 animate-pulse">🦠</div>
+                </div>
+                <div id="feedback-text" class="text-4xl font-fredoka text-white mt-4 uppercase"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const questionsData = [
+            { id: 1, concept: "Hazırlık", variants: {
+                DY: { q: "El yıkamaya başlamadan önce ellerimizi suyla ıslatırız.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" },
+                BD: { q: "El yıkamaya başlamadan önce ellerimizi önce _________.", opts: ["Sabunlarız", "Kurularız", "Islatırız"], ans: "Islatırız" },
+                CS: { q: "El yıkamaya başlamadan önce ellerimizi önce ne yaparız?", opts: ["Sabunlarız", "Islatırız", "Kurularız"], ans: "Islatırız" }
+            }},
+            { id: 2, concept: "Sıralama", variants: {
+                DY: { q: "Doğru Sıra: Islat → Sabunla → Parmak Arası → Durula. Bu doğru mu?", opts: ["EVET", "HAYIR"], ans: "EVET" },
+                BD: { q: "El yıkarken önce ellerimizi ________, sonra sabun alırız.", opts: ["Islatırız", "Kurularız", "Ovuştururuz"], ans: "Islatırız" },
+                CS: { q: "Aşağıdakilerden hangisi doğru el yıkama sırasını gösterir?", opts: ["Sabun-Durula-Islat", "Islat-Sabun-Durula", "Durula-Sabun-Islat"], ans: "Islat-Sabun-Durula" }
+            }},
+            { id: 3, concept: "Mikroplar", variants: {
+                DY: { q: "Sabunla yıkadığımızda 'geçici mikroplar' uzaklaşır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" },
+                BD: { q: "Sabunla el yıkadığımızda bizi hasta edebilen __________ mikroplar uzaklaşır.", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici" },
+                CS: { q: "Bizi hastalandıran ve sabunla uzaklaşan mikroplar hangileridir?", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici" }
+            }},
+            { id: 4, concept: "Süre", variants: {
+                DY: { q: "Ellerimizi yıkarken 5 saniye ovuşturmak yeterlidir.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+                BD: { q: "Ellerimizi yıkarken en az _______’e kadar saymalıyız.", opts: ["5", "10", "15"], ans: "15" },
+                CS: { q: "Ellerimizi yıkarken kaça kadar saymalıyız?", opts: ["5", "10", "15"], ans: "15" }
+            }},
+            { id: 5, concept: "Amaç", variants: {
+                DY: { q: "El yıkamanın temel amacı ellerin güzel kokmasıdır.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+                BD: { q: "El yıkamanın temel amacı __________ kurtulmaktır.", opts: ["Mikroplardan", "Kirden", "Kötü kokudan"], ans: "Mikroplardan" },
+                CS: { q: "El yıkamanın amacı nedir?", opts: ["Temiz görünmek", "Mikroplardan kurtulmak", "Güzel kokmak"], ans: "Mikroplardan kurtulmak" }
+            }},
+            { id: 6, concept: "Genel", variants: {
+                DY: { q: "Ellerimizi sadece kirli görünce yıkamalıyız.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+                BD: { q: "Tırnakların içi kir ve mikropla dolabilir, bu yüzden ________.", opts: ["Yıkanmalıdır", "Kesilmemelidir", "Saklanmalıdır"], ans: "Yıkanmalıdır" },
+                CS: { q: "Elleri yıkarken hangisi temizliği artırır?", opts: ["Sadece su", "Hızlı yıkama", "Parmak aralarını sürtmek"], ans: "Parmak aralarını sürtmek" }
+            }}
+        ];
+
+        let gameState = {
+            score: 0,
+            badges: 0,
+            germHP: 100,
+            activeQueue: [],
+            retryQueue: [],
+            isProcessing: false,
+            totalConcepts: 6,
+            conceptsCleared: 0,
+            userLogs: [],
+            currentAttempts: {}
+        };
+
+        // Arka Plan Parçalarını Oluştur
+        function initBackground() {
+            const container = document.getElementById('dirty-bg-container');
+            container.innerHTML = '';
+            for (let i = 0; i < 6; i++) {
+                const slice = document.createElement('div');
+                slice.className = 'dirty-slice';
+                slice.id = `slice-${i}`;
+                // Her parçanın arka plan pozisyonunu ayarla
+                slice.style.backgroundPosition = `calc(${i} * -16.66vw) 0`;
+                container.appendChild(slice);
+            }
+        }
+
+        function startGame() {
+            initBackground();
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('question-screen').classList.remove('hidden');
+            
+            gameState.userId = "Kahraman_" + (Math.floor(Math.random() * 9000) + 1000);
+            gameState.activeQueue = questionsData.map(q => ({
+                ...q, 
+                variantIndex: 0, 
+                order: ['DY', 'BD', 'CS']
+            }));
+            
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            if (gameState.activeQueue.length === 0 && gameState.retryQueue.length === 0) {
+                endGame();
+                return;
+            }
+
+            if (gameState.retryQueue.length > 0 && (gameState.activeQueue.length === 0 || Math.random() > 0.6)) {
+                gameState.currentQuestion = gameState.retryQueue.shift();
+            } else {
+                gameState.currentQuestion = gameState.activeQueue.shift();
+            }
+
+            if(!gameState.currentAttempts[gameState.currentQuestion.id]) {
+                gameState.currentAttempts[gameState.currentQuestion.id] = 1;
+            }
+
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = gameState.currentQuestion;
+            const variantKey = q.order[q.variantIndex];
+            const data = q.variants[variantKey];
+            
+            document.getElementById('level-title').innerText = `BÖLÜM ${Math.floor(gameState.score / 100) + 1}`;
+            document.getElementById('question-text').innerText = data.q;
+            
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            const colors = ['bg-blue-600', 'bg-indigo-600', 'bg-violet-600'];
+
+            data.opts.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = `btn-game ${colors[index % 3]} text-white font-bold py-5 px-6 rounded-2xl text-xl shadow-xl border-b-8 border-black/20`;
+                btn.innerText = opt;
+                btn.onclick = () => handleAnswer(opt, data.ans);
+                optionsContainer.appendChild(btn);
+            });
+
+            const progress = (gameState.conceptsCleared / gameState.totalConcepts) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+        }
+
+        function handleAnswer(selected, correct) {
+            if (gameState.isProcessing) return;
+            gameState.isProcessing = true;
+            
+            const q = gameState.currentQuestion;
+            const isCorrect = selected.toUpperCase() === correct.toUpperCase();
+
+            if (isCorrect) {
+                // Arka planı parça parça aç
+                revealBackgroundPiece(gameState.conceptsCleared);
+                gameState.conceptsCleared++;
+                
+                triggerSoapRain();
+                damageGermVisuals();
+                
+                gameState.userLogs.push({
+                    "Kullanıcı": gameState.userId,
+                    "Konu": q.concept,
+                    "Soru ID": q.id,
+                    "Durum": "DOĞRU",
+                    "Deneme": gameState.currentAttempts[q.id],
+                    "Puan": 100,
+                    "Tarih": new Date().toLocaleString()
+                });
+
+                confetti({ particleCount: 100, spread: 60, origin: { y: 0.7 } });
+                showFeedback(true);
+                
+                gameState.score += 100;
+                gameState.badges++;
+                updateHUD(true);
+                
+                gameState.germHP = Math.max(0, 100 - (gameState.conceptsCleared * (100/gameState.totalConcepts)));
+                document.getElementById('germ-hp-bar').style.width = `${gameState.germHP}%`;
+
+                setTimeout(() => {
+                    hideFeedback();
+                    nextQuestion();
+                    gameState.isProcessing = false;
+                }, 1800);
+            } else {
+                gameState.currentAttempts[q.id]++;
+                showFeedback(false);
+                gameState.score = Math.max(0, gameState.score - 20);
+                updateHUD(false);
+                
+                setTimeout(() => {
+                    hideFeedback();
+                    if (q.variantIndex < 2) q.variantIndex++;
+                    gameState.retryQueue.push(q);
+                    nextQuestion();
+                    gameState.isProcessing = false;
+                }, 2200);
+            }
+        }
+
+        // Arka plan parçasını temizle (Sol -> Sağ)
+        function revealBackgroundPiece(index) {
+            const slice = document.getElementById(`slice-${index}`);
+            if (slice) {
+                slice.style.opacity = '0';
+                slice.style.transform = 'translateY(-20px) scale(0.9)';
+                slice.style.pointerEvents = 'none';
+            }
+        }
+
+        function triggerSoapRain() {
+            const container = document.getElementById('soap-rain-container');
+            for (let i = 0; i < 15; i++) {
+                const soap = document.createElement('div');
+                soap.innerText = "🧼";
+                soap.className = "soap-particle";
+                soap.style.left = Math.random() * 100 + "vw";
+                soap.style.animationDuration = (Math.random() * 2 + 1) + "s";
+                container.appendChild(soap);
+                setTimeout(() => soap.remove(), 3000);
+            }
+        }
+
+        function damageGermVisuals() {
+            const germImg = document.getElementById('germ-img');
+            const germContainer = document.getElementById('germ-container');
+            germImg.classList.add('germ-hit', 'shake');
+            
+            const damage = document.createElement('div');
+            damage.innerText = "-20 HP";
+            damage.className = "damage-popup font-fredoka";
+            damage.style.left = "50%";
+            damage.style.top = "0";
+            germContainer.appendChild(damage);
+
+            setTimeout(() => {
+                germImg.classList.remove('germ-hit', 'shake');
+                damage.remove();
+            }, 1000);
+        }
+
+        function showFeedback(isCorrect) {
+            const overlay = document.getElementById('feedback-overlay');
+            const text = document.getElementById('feedback-text');
+            const successArea = document.getElementById('success-area');
+            const failArea = document.getElementById('fail-area');
+            overlay.classList.remove('hidden');
+            
+            if (isCorrect) {
+                successArea.classList.remove('hidden');
+                failArea.classList.add('hidden');
+                text.innerText = "TEMİZLİK SALDIRISI!";
+                text.className = "text-5xl font-fredoka text-blue-400 mt-4 tracking-wider";
+            } else {
+                successArea.classList.add('hidden');
+                failArea.classList.remove('hidden');
+                text.innerText = "MİKROP SALDIRDI!";
+                text.className = "text-5xl font-fredoka text-red-500 mt-4 tracking-wider";
+                document.getElementById('game-container').classList.add('shake');
+                setTimeout(() => document.getElementById('game-container').classList.remove('shake'), 500);
+            }
+        }
+
+        function hideFeedback() {
+            document.getElementById('feedback-overlay').classList.add('hidden');
+        }
+
+        function updateHUD(isNewBadge) {
+            document.getElementById('score-display').innerText = gameState.score;
+            const badgeContainer = document.getElementById('badge-display');
+            if (isNewBadge) {
+                const span = document.createElement('span');
+                span.innerText = "🧼";
+                span.className = "inline-block animate-bounce";
+                badgeContainer.appendChild(span);
+            }
+        }
+
+        function endGame() {
+            // Tüm parçaların temizlendiğinden emin ol
+            for(let i=0; i<6; i++) revealBackgroundPiece(i);
+            
+            document.getElementById('question-screen').classList.add('hidden');
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            confetti({ particleCount: 300, spread: 150, scalar: 1.5 });
+            
+            document.getElementById('final-stats').innerHTML = `
+                <div class="text-center space-y-4">
+                    <p class="text-xl text-blue-200">Kahraman: ${gameState.userId}</p>
+                    <p class="text-6xl text-yellow-400 font-fredoka">${gameState.score} PUAN</p>
+                    <div class="h-1 bg-white/20 w-full rounded-full"></div>
+                    <p class="text-2xl text-white">ODA TERTEMİZ OLDU VE<br>MİKROPLAR KAÇTI!</p>
+                </div>
+            `;
+        }
+
+        function downloadResults() {
+            if (gameState.userLogs.length === 0) return;
+            const worksheet = XLSX.utils.json_to_sheet(gameState.userLogs);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Mikrop Avcısı Raporu");
+            XLSX.writeFile(workbook, `MikropAvcisi_Rapor_${gameState.userId}.xlsx`);
+        }
+    </script>
+</body>
+</html>
