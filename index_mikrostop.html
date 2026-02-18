@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mikrop Avcıları: Puzzle Görevi</title>
-    <!-- Türkçe karakter desteği mükemmel olan Baloo 2 fontu yüklendi -->
+    <!-- Baloo 2 fontu yüklendi -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -20,12 +20,10 @@
             justify-content: center;
             height: 100vh;
             overflow: hidden;
-            /* Yazı tipinin daha pürüzsüz görünmesi için */
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
         
-        /* Başlıklar ve vurgulu alanlar için extra bold sınıfı */
         .font-baloo-bold { font-family: 'Baloo 2', cursive; font-weight: 800; }
         
         .game-card {
@@ -108,6 +106,34 @@
         .puzzle-piece.placed {
             opacity: 1;
             transform: scale(1) rotate(0deg);
+        }
+
+        /* Yeni Dağınık Çamur Efekti Stilleri */
+        .mud-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 150;
+        }
+
+        .mud-splat {
+            position: absolute;
+            background: #4a3427; /* Çamur rengi */
+            opacity: 0;
+            animation: mudSplatAnimation 3s ease-out forwards;
+            box-shadow: inset 5px 5px 15px rgba(0,0,0,0.4);
+            filter: blur(1px);
+        }
+
+        @keyframes mudSplatAnimation {
+            0% { transform: scale(0.2) rotate(0deg); opacity: 0; }
+            10% { transform: scale(1.1) rotate(15deg); opacity: 0.9; }
+            20% { transform: scale(1) rotate(10deg); opacity: 1; }
+            80% { transform: scale(1) translateY(10px); opacity: 1; }
+            100% { transform: scale(0.8) translateY(100vh); opacity: 0; }
         }
 
         /* Soru Alanı */
@@ -222,6 +248,8 @@
 </head>
 <body>
 
+    <div id="mud-container" class="mud-container"></div>
+
     <div class="game-card" id="main-card">
         <!-- Başlangıç -->
         <div id="start-screen">
@@ -234,16 +262,18 @@
 
             <div class="z-20 flex flex-col items-center">
                 <div class="relative mb-2">
+                    <!-- Sol tarafa zıplayan Kahraman -->
                     <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
                          class="absolute -top-16 -left-16 w-24 h-24 bounce-kahraman" alt="Zıplayan Kahraman">
                     
                     <h1 class="text-6xl md:text-8xl font-baloo-bold text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] leading-none uppercase">MİKROSTOP</h1>
                     
+                    <!-- Sağ tarafa zıplayan Mikrop -->
                     <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" 
                          class="absolute -top-16 -right-16 w-24 h-24 bounce-mikrop" alt="Zıplayan Mikrop">
                 </div>
                 
-                <h2 class="text-3xl md:text-4xl font-baloo-bold text-blue-500 mb-12 tracking-widest drop-shadow-md">MİKROP AVCILARI</h2>
+                <h2 class="text-3xl md:text-4xl font-baloo-bold text-blue-500 mb-12 tracking-widest drop-shadow-md uppercase">MİKROP AVCILARI</h2>
                 
                 <button onclick="startGame()" class="btn-game bg-blue-600 px-20 py-8 rounded-full text-4xl text-white shadow-[0_10px_0_rgb(29,78,216)] active:shadow-none mb-6">
                     BAŞLA
@@ -262,7 +292,7 @@
             </div>
             <div id="badge-display" class="text-2xl"></div>
             <div class="text-right">
-                <span class="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Skor</span>
+                <span class="text-slate-400 text-[11px] font-bold uppercase tracking-wider">İlerleme</span>
                 <div id="score-display" class="text-2xl font-bold text-yellow-400">0</div>
             </div>
         </div>
@@ -298,8 +328,8 @@
             <div class="text-9xl mb-8">🏆</div>
             <div id="final-stats" class="text-3xl text-white mb-10 space-y-3 bg-slate-800/50 p-8 rounded-3xl border-2 border-white/10"></div>
             <div class="flex flex-col gap-4 w-full max-w-xs">
-                <button onclick="downloadResults()" class="btn-game bg-amber-500 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-[0_6px_0_rgb(180,83,9)]">📊 RAPORU İNDİR</button>
-                <button onclick="location.reload()" class="btn-game bg-green-600 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-[0_6px_0_rgb(22,101,52)]">TEKRAR OYNA</button>
+                <button onclick="downloadResults()" class="btn-game bg-amber-500 text-white px-10 py-5 rounded-2xl font-black text-xl shadow-[0_6px_0_rgb(180,83,9)]">📊 RAPORU İNDİR</button>
+                <button onclick="location.reload()" class="btn-game bg-green-600 text-white px-10 py-5 rounded-2xl font-black text-xl shadow-[0_6px_0_rgb(22,101,52)]">TEKRAR OYNA</button>
             </div>
         </div>
     </div>
@@ -346,6 +376,7 @@
             isProcessing: false,
             waitingForPuzzleClick: false,
             logs: [],
+            attempts: {}, // Her soru için deneme sayısını tutar
             userId: "K-" + Math.floor(1000 + Math.random() * 9000)
         };
 
@@ -369,12 +400,48 @@
             }
         }
 
+        // Güncellenmiş Dağınık Çamur Efekti
+        function triggerMudEffect() {
+            const container = document.getElementById('mud-container');
+            const splatCount = 35;
+
+            for (let i = 0; i < splatCount; i++) {
+                const splat = document.createElement('div');
+                splat.className = 'mud-splat';
+                const size = Math.random() * 80 + 20;
+                const r1 = Math.random() * 50 + 20;
+                const r2 = Math.random() * 50 + 20;
+                const r3 = Math.random() * 50 + 20;
+                const r4 = Math.random() * 50 + 20;
+                
+                splat.style.width = `${size}px`;
+                splat.style.height = `${size * (Math.random() * 0.5 + 0.8)}px`;
+                splat.style.borderRadius = `${r1}% ${100-r1}% ${r2}% ${100-r2}% / ${r3}% ${r4}% ${100-r4}% ${100-r3}%`;
+                splat.style.left = `${Math.random() * 100}vw`;
+                splat.style.top = `${Math.random() * 80}vh`;
+                
+                const delay = Math.random() * 0.5;
+                const duration = Math.random() * 1 + 2;
+                splat.style.animationDelay = `${delay}s`;
+                splat.style.animationDuration = `${duration}s`;
+
+                container.appendChild(splat);
+                setTimeout(() => splat.remove(), (delay + duration) * 1000);
+            }
+        }
+
         function startGame() {
             initPuzzle();
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('hud').classList.remove('hidden');
             document.getElementById('question-view').classList.remove('hidden');
-            state.activeQueue = questionsData.map(q => ({...q, variantIdx: 0, order: ['DY', 'BD', 'CS']}));
+            
+            // Soruları ve deneme sayılarını ilklendir
+            state.activeQueue = questionsData.map(q => {
+                state.attempts[q.id] = 1;
+                return {...q, variantIdx: 0, order: ['DY', 'BD', 'CS']};
+            });
+            
             nextQuestion();
         }
 
@@ -414,7 +481,20 @@
             const isCorrect = selected.toUpperCase() === correct.toUpperCase();
 
             if (isCorrect) {
-                state.score += 100;
+                // Soru bazlı puan hesaplama (100 - hatalı denemeler * 20)
+                const questionScore = 100 - ((state.attempts[state.current.id] - 1) * 20);
+                state.score += 100; // Oyun içi skor toplam puan üzerinden yürür
+                
+                // Log kaydı: İstenen formatta güncelleme
+                state.logs.push({
+                    "Kahraman": state.userId,
+                    "Soru No": state.current.id,
+                    "Deneme Sayısı": state.attempts[state.current.id],
+                    "Sonuç": "DOĞRU",
+                    "Puan": questionScore, // Sadece bu sorudan alınan net puan
+                    "Tarih": new Date().toLocaleTimeString()
+                });
+
                 showFeedback("TEBRİKLER!", "🏆", "text-yellow-400", "Rozet kazandın! Rozetini puzzle'ı tamamlamak için kullan!");
                 confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
                 
@@ -428,16 +508,12 @@
                 if (nextSlot) nextSlot.classList.add('clickable');
                 
                 state.waitingForPuzzleClick = true;
-                
-                state.logs.push({
-                    "Kahraman": state.userId,
-                    "Konu": state.current.concept,
-                    "Sonuç": "DOĞRU",
-                    "Puan": 100,
-                    "Zaman": new Date().toLocaleTimeString()
-                });
             } else {
-                showFeedback("MİKROP SALDIRISI!", "🦠", "text-red-500", "Hata yaptın! Mikroplar odayı daha çok kirletti.");
+                // Yanlış cevapta deneme sayısını artır
+                state.attempts[state.current.id]++;
+                
+                triggerMudEffect();
+                showFeedback("MİKROP SALDIRISI!", "🦠", "text-red-500", "Hata yaptın! Mikroplar odayı çamurla kirletti!");
                 document.getElementById('main-card').classList.add('shake');
                 state.score = Math.max(0, state.score - 20);
                 document.getElementById('score-display').innerText = state.score;
@@ -449,7 +525,7 @@
                     state.retryQueue.push(state.current);
                     nextQuestion();
                     state.isProcessing = false;
-                }, 2000);
+                }, 2500);
             }
         }
 
@@ -510,11 +586,12 @@
             const pView = document.getElementById('puzzle-view');
             pView.classList.add('active');
             document.getElementById('puzzle-ghost').style.opacity = '0';
+            
+            // Puan gösterimi kaldırıldı
             document.getElementById('final-stats').innerHTML = `
                 <div class="text-center">
-                    <p class="text-slate-400 mb-2">Kahraman Kimliği: <span class="text-white">${state.userId}</span></p>
-                    <p class="text-7xl text-yellow-400 font-bold mb-4">${state.score}</p>
-                    <p class="text-white font-bold tracking-widest uppercase">Tüm puzzle tamamlandı! Oda mikroplardan temizlendi!</p>
+                    <p class="text-slate-400 mb-4">Kahraman Kimliği: <span class="text-white">${state.userId}</span></p>
+                    <p class="text-white font-bold tracking-widest uppercase">Tebrikler Kahraman! Tüm puzzle parçalarını topladın ve odayı mikroplardan tamamen temizledin!</p>
                 </div>
             `;
             confetti({ particleCount: 400, spread: 150, origin: { y: 0.6 } });
