@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mikrop Avcıları: Puzzle Görevi</title>
+    <!-- Baloo 2 fontu yüklendi -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Baloo 2', cursive;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        .font-baloo-bold { font-family: 'Baloo 2', cursive; font-weight: 800; }
+        
+        .game-card {
+            background: rgba(30, 41, 59, 1);
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-radius: 2.5rem;
+            width: 95%;
+            max-width: 800px;
+            height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Puzzle Görünümü */
+        #puzzle-view {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            background: #1e293b;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 2px;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(100%);
+            pointer-events: none;
+        }
+
+        #puzzle-view.active {
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        #puzzle-ghost {
+            position: absolute;
+            inset: 0;
+            background-image: url('start.JPEG');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.2;
+            z-index: 0;
+        }
+
+        .puzzle-slot {
+            position: relative;
+            z-index: 1;
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            background: rgba(0,0,0,0.3);
+            cursor: default;
+            transition: all 0.3s;
+        }
+
+        .puzzle-slot.clickable {
+            cursor: pointer;
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            animation: pulse-border 1.5s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: rgba(59, 130, 246, 0.3); }
+            50% { border-color: rgba(59, 130, 246, 1); }
+            100% { border-color: rgba(59, 130, 246, 0.3); }
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            inset: 0;
+            background-image: url('end.JPEG');
+            background-size: 300% 200%;
+            opacity: 0;
+            transform: scale(2) rotate(30deg);
+            transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .puzzle-piece.placed {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+
+        /* Çamur Efekti */
+        .mud-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 150;
+        }
+
+        .mud-splat {
+            position: absolute;
+            background: #4a3427;
+            opacity: 0;
+            animation: mudSplatAnimation 3s ease-out forwards;
+            box-shadow: inset 5px 5px 15px rgba(0,0,0,0.4);
+            filter: blur(1px);
+        }
+
+        @keyframes mudSplatAnimation {
+            0% { transform: scale(0.2) rotate(0deg); opacity: 0; }
+            10% { transform: scale(1.1) rotate(15deg); opacity: 0.9; }
+            20% { transform: scale(1) rotate(10deg); opacity: 1; }
+            80% { transform: scale(1) translateY(10px); opacity: 1; }
+            100% { transform: scale(0.8) translateY(100vh); opacity: 0; }
+        }
+
+        /* Soru Alanı */
+        #question-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 2rem;
+            z-index: 10;
+        }
+
+        .btn-game {
+            transition: all 0.2s;
+            border-bottom: 4px solid rgba(0,0,0,0.4);
+            cursor: pointer;
+            pointer-events: auto;
+            font-weight: 700;
+        }
+        .btn-game:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+        .btn-game:active {
+            transform: translateY(2px);
+            border-bottom-width: 1px;
+        }
+
+        .shake { animation: shake 0.5s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        #feedback-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.98);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        /* Başlangıç Ekranı */
+        #start-screen {
+            position: absolute;
+            inset: 0;
+            z-index: 200;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            pointer-events: auto;
+            overflow: hidden;
+        }
+
+        .input-group {
+            width: 100%;
+            max-width: 350px;
+            margin-bottom: 1.5rem;
+            z-index: 30;
+        }
+
+        .game-input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border-radius: 1rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(59, 130, 246, 0.5);
+            color: white;
+            font-size: 1.2rem;
+            font-family: 'Baloo 2', cursive;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        .game-input:focus {
+            border-color: #3b82f6;
+            background: rgba(30, 41, 59, 1);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .hero-img-feedback {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 8px solid #3b82f6;
+            margin-bottom: 1.5rem;
+            object-fit: cover;
+            background: white;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+        }
+
+        /* Karakter Animasyonları */
+        .bounce-mikrop { animation: mini-bounce-right 2s infinite ease-in-out; }
+        .bounce-kahraman { animation: mini-bounce-left 2s infinite ease-in-out; animation-delay: 0.5s; }
+        .hero-breathing { animation: breathing 3s infinite ease-in-out; transform-origin: bottom left; }
+
+        @keyframes breathing { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        @keyframes mini-bounce-right { 0%, 100% { transform: translateY(0) rotate(5deg); } 50% { transform: translateY(-25px) rotate(-5deg); } }
+        @keyframes mini-bounce-left { 0%, 100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-25px) rotate(5deg); } }
+
+        .side-character { transition: transform 0.3s ease; }
+        .side-character:hover { transform: scale(1.15) !important; }
+    </style>
+</head>
+<body>
+
+    <div id="mud-container" class="mud-container"></div>
+
+    <div class="game-card" id="main-card">
+        <!-- Başlangıç -->
+        <div id="start-screen">
+            <!-- Karakterler -->
+            <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
+                 class="absolute -left-10 bottom-10 w-64 md:w-80 side-character hero-breathing z-10" alt="Kahraman">
+            
+            <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" 
+                 class="absolute -right-10 bottom-10 w-64 md:w-80 side-character z-10 animate-pulse" alt="Mikrop">
+
+            <div class="z-20 flex flex-col items-center w-full">
+                <div class="relative mb-2">
+                    <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
+                         class="absolute -top-16 -left-16 w-24 h-24 bounce-kahraman" alt="Zıplayan Kahraman">
+                    
+                    <h1 class="text-6xl md:text-8xl font-baloo-bold text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] leading-none uppercase">MİKROSTOP</h1>
+                    
+                    <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" 
+                         class="absolute -top-16 -right-16 w-24 h-24 bounce-mikrop" alt="Zıplayan Mikrop">
+                </div>
+                
+                <h2 class="text-3xl md:text-4xl font-baloo-bold text-blue-500 mb-8 tracking-widest drop-shadow-md uppercase text-center">MİKROP AVCILARI</h2>
+                
+                <!-- İsim Soyisim Giriş Alanı -->
+                <div class="input-group">
+                    <input type="text" id="user-name" class="game-input mb-3" placeholder="Adınız" autocomplete="off">
+                    <input type="text" id="user-surname" class="game-input" placeholder="Soyadınız" autocomplete="off">
+                </div>
+
+                <button onclick="startGame()" class="btn-game bg-blue-600 px-20 py-6 rounded-full text-4xl text-white shadow-[0_10px_0_rgb(29,78,216)] active:shadow-none mb-6">
+                    BAŞLA
+                </button>
+                <p class="text-slate-200 text-lg font-bold bg-black/40 px-6 py-2 rounded-full backdrop-blur-sm">Odayı temizlemek için ismini gir ve başla!</p>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud" class="hidden bg-slate-800 p-4 flex justify-between items-center px-8 border-b border-white/10 relative z-30">
+            <div class="flex flex-col">
+                <span class="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Puzzle Durumu</span>
+                <div class="w-32 h-3 bg-slate-900 rounded-full mt-1 overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-700" style="width: 0%"></div>
+                </div>
+            </div>
+            <div id="badge-display" class="text-2xl"></div>
+            <div class="text-right">
+                <span id="display-name" class="text-blue-400 text-[12px] font-bold block">Kullanıcı</span>
+                <div id="score-display" class="text-2xl font-bold text-yellow-400">0</div>
+            </div>
+        </div>
+
+        <!-- Soru Ekranı -->
+        <div id="question-view" class="hidden">
+            <div class="space-y-8">
+                <div class="text-center">
+                    <span id="question-category" class="bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-bold uppercase tracking-widest">KATEGORİ</span>
+                </div>
+                <h2 id="question-text" class="text-3xl md:text-4xl font-bold text-center px-4 text-white leading-tight">Soru Yükleniyor...</h2>
+                <div id="options-container" class="grid grid-cols-1 gap-4 max-w-md mx-auto w-full"></div>
+            </div>
+        </div>
+
+        <!-- Puzzle Görünümü -->
+        <div id="puzzle-view">
+            <div id="puzzle-ghost"></div>
+        </div>
+
+        <!-- Feedback Overlay -->
+        <div id="feedback-overlay">
+            <div id="feedback-hero-container">
+                <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" class="hero-img-feedback" alt="Kahraman">
+            </div>
+            <div id="feedback-text" class="text-5xl font-bold mb-2"></div>
+            <div id="feedback-sub" class="text-slate-300 text-2xl font-bold max-w-md"></div>
+        </div>
+
+        <!-- Final -->
+        <div id="result-screen" class="hidden absolute inset-0 z-[300] bg-slate-900 flex flex-col items-center justify-center p-8 text-center">
+            <h2 class="text-7xl font-bold text-yellow-400 mb-6 uppercase">TEBRİKLER!</h2>
+            <div class="text-9xl mb-8">🏆</div>
+            <div id="final-stats" class="text-3xl text-white mb-10 space-y-3 bg-slate-800/50 p-8 rounded-3xl border-2 border-white/10"></div>
+            <div class="flex flex-col gap-4 w-full max-w-xs">
+                <button onclick="downloadResults()" class="btn-game bg-amber-500 text-white px-10 py-5 rounded-2xl font-black text-xl shadow-[0_6px_0_rgb(180,83,9)]">📊 RAPORU İNDİR</button>
+                <button onclick="location.reload()" class="btn-game bg-green-600 text-white px-10 py-5 rounded-2xl font-black text-xl shadow-[0_6px_0_rgb(22,101,52)]">TEKRAR OYNA</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const questionsData = [
+            { id: 1, concept: "Hazırlık", variants: {
+                DY: { q: "El yıkamaya başlamadan önce ellerimizi suyla ıslatırız.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" },
+                BD: { q: "El yıkamaya başlamadan önce ellerimizi önce _________.", opts: ["Sabunlarız", "Kurularız", "Islatırız"], ans: "Islatırız" },
+                CS: { q: "El yıkamaya başlamadan önce ellerimizi önce ne yaparız?", opts: ["Sabunlarız", "Islatırız", "Kurularız"], ans: "Islatırız" }
+            }},
+            { id: 2, concept: "Sıralama", variants: {
+                DY: { q: "Doğru Sıra: Islat → Sabunla → Parmak Arası → Durula. Bu doğru mu?", opts: ["EVET", "HAYIR"], ans: "EVET" },
+                BD: { q: "El yıkarken önce ellerimizi ________, sonra sabun alırız.", opts: ["Islatırız", "Kurularız", "Ovuştururuz"], ans: "Islatırız" },
+                CS: { q: "Aşağıdakilerden hangisi doğru el yıkama sırasını gösterir?", opts: ["Sabun-Durula-Islat", "Islat-Sabun-Durula", "Durula-Sabun-Islat"], ans: "Islat-Sabun-Durula" }
+            }},
+            { id: 3, concept: "Mikroplar", variants: {
+                DY: { q: "Sabunla yıkadığımızda 'geçici mikroplar' uzaklaşır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" },
+                BD: { q: "Sabunla el yıkadığımızda bizi hasta edebilen __________ mikroplar uzaklaşır.", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici" },
+                CS: { q: "Bizi hastalandıran ve sabunla uzaklaşan mikroplar hangileridir?", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici" }
+            }},
+            { id: 4, concept: "Süre", variants: {
+                DY: { q: "Ellerimizi yıkarken 5 saniye ovuşturmak yeterlidir.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+                BD: { q: "Ellerimizi yıkarken en az _______’e kadar saymalıyız.", opts: ["5", "10", "15"], ans: "15" },
+                CS: { q: "Ellerimizi yıkarken kaça kadar saymalıyız?", opts: ["5", "10", "15"], ans: "15" }
+            }},
+            { id: 5, concept: "Amaç", variants: {
+                DY: { q: "El yıkamanın temel amacı ellerin güzel kokmasıdır.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+                BD: { q: "El yıkamanın temel amacı __________ kurtulmaktır.", opts: ["Mikroplardan", "Kirden", "Kötü kokudan"], ans: "Mikroplardan" },
+                CS: { q: "El yıkamanın amacı nedir?", opts: ["Temiz görünmek", "Mikroplardan kurtulmak", "Güzel kokmak"], ans: "Mikroplardan kurtulmak" }
+            }},
+            { id: 6, concept: "Genel", variants: {
+                DY: { q: "Ellerimizi sadece kirli görünce yıkamalıyız.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+                BD: { q: "Tırnakların içi kir ve mikropla dolabilir, bu yüzden ________.", opts: ["Yıkanmalıdır", "Kesilmemelidir", "Saklanmalıdır"], ans: "Yıkanmalıdır" },
+                CS: { q: "Elleri yıkarken hangisi temizliği artırır?", opts: ["Sadece su", "Hızlı yıkama", "Parmak aralarını sürtmek"], ans: "Parmak aralarını sürtmek" }
+            }}
+        ];
+
+        let state = {
+            firstName: "",
+            lastName: "",
+            score: 0,
+            pieces: 0,
+            activeQueue: [],
+            retryQueue: [],
+            isProcessing: false,
+            waitingForPuzzleClick: false,
+            logs: [],
+            attempts: {},
+            userId: ""
+        };
+
+        function initPuzzle() {
+            const container = document.getElementById('puzzle-view');
+            container.querySelectorAll('.puzzle-slot').forEach(s => s.remove());
+            for (let i = 0; i < 6; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'puzzle-slot';
+                slot.id = `slot-${i}`;
+                slot.onclick = () => handleSlotClick(i);
+                const piece = document.createElement('div');
+                piece.className = 'puzzle-piece';
+                piece.id = `piece-${i}`;
+                piece.style.backgroundPosition = `${(i % 3) * 50}% ${Math.floor(i / 3) * 100}%`;
+                slot.appendChild(piece);
+                container.appendChild(slot);
+            }
+        }
+
+        function triggerMudEffect() {
+            const container = document.getElementById('mud-container');
+            const splatCount = 35;
+            for (let i = 0; i < splatCount; i++) {
+                const splat = document.createElement('div');
+                splat.className = 'mud-splat';
+                const size = Math.random() * 80 + 20;
+                const r1 = Math.random() * 50 + 20;
+                const r2 = Math.random() * 50 + 20;
+                const r3 = Math.random() * 50 + 20;
+                const r4 = Math.random() * 50 + 20;
+                splat.style.width = `${size}px`;
+                splat.style.height = `${size * (Math.random() * 0.5 + 0.8)}px`;
+                splat.style.borderRadius = `${r1}% ${100-r1}% ${r2}% ${100-r2}% / ${r3}% ${r4}% ${100-r4}% ${100-r3}%`;
+                splat.style.left = `${Math.random() * 100}vw`;
+                splat.style.top = `${Math.random() * 80}vh`;
+                const delay = Math.random() * 0.5;
+                const duration = Math.random() * 1 + 2;
+                splat.style.animationDelay = `${delay}s`;
+                splat.style.animationDuration = `${duration}s`;
+                container.appendChild(splat);
+                setTimeout(() => splat.remove(), (delay + duration) * 1000);
+            }
+        }
+
+        function startGame() {
+            const fName = document.getElementById('user-name').value.trim();
+            const lName = document.getElementById('user-surname').value.trim();
+
+            if (fName === "" || lName === "") {
+                alert("Lütfen oyuna başlamadan önce isminizi ve soyisminizi girin!");
+                return;
+            }
+
+            state.firstName = fName;
+            state.lastName = lName;
+            state.userId = fName + " " + lName;
+
+            initPuzzle();
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('display-name').innerText = state.userId;
+            document.getElementById('question-view').classList.remove('hidden');
+            
+            state.activeQueue = questionsData.map(q => {
+                state.attempts[q.id] = 1;
+                return {...q, variantIdx: 0, order: ['DY', 'BD', 'CS']};
+            });
+            
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            if (state.pieces >= 6) {
+                endGame();
+                return;
+            }
+            if (state.retryQueue.length > 0 && (state.activeQueue.length === 0 || Math.random() > 0.4)) {
+                state.current = state.retryQueue.shift();
+            } else {
+                state.current = state.activeQueue.shift();
+            }
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = state.current;
+            const variant = q.variants[q.order[q.variantIdx]];
+            document.getElementById('question-category').innerText = q.concept;
+            document.getElementById('question-text').innerText = variant.q;
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            const colors = ['bg-blue-600', 'bg-indigo-600', 'bg-violet-600'];
+            variant.opts.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = `btn-game ${colors[i % 3]} text-white p-6 rounded-2xl font-bold text-2xl shadow-[0_6px_0_rgba(0,0,0,0.3)]`;
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(opt, variant.ans);
+                container.appendChild(btn);
+            });
+        }
+
+        async function checkAnswer(selected, correct) {
+            if (state.isProcessing) return;
+            state.isProcessing = true;
+            const isCorrect = selected.toUpperCase() === correct.toUpperCase();
+
+            if (isCorrect) {
+                const questionScore = 100 - ((state.attempts[state.current.id] - 1) * 20);
+                state.score += 100;
+                
+                // Log kaydı: İsim ve Soyisim sütunlarını içeren yapı
+                state.logs.push({
+                    "Ad": state.firstName,
+                    "Soyad": state.lastName,
+                    "Soru No": state.current.id,
+                    "Deneme Sayısı": state.attempts[state.current.id],
+                    "Sonuç": "DOĞRU",
+                    "Puan": questionScore,
+                    "Tarih": new Date().toLocaleString()
+                });
+
+                showFeedback("TEBRİKLER!", "🏆", "text-yellow-400", "Rozet kazandın! Rozetini puzzle'ı tamamlamak için kullan!");
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                
+                await new Promise(r => setTimeout(r, 2500));
+                hideFeedback();
+
+                const pView = document.getElementById('puzzle-view');
+                pView.classList.add('active');
+                
+                const nextSlot = document.getElementById(`slot-${state.pieces}`);
+                if (nextSlot) nextSlot.classList.add('clickable');
+                
+                state.waitingForPuzzleClick = true;
+            } else {
+                state.attempts[state.current.id]++;
+                triggerMudEffect();
+                showFeedback("MİKROP SALDIRISI!", "🦠", "text-red-500", "Hata yaptın! Mikroplar odayı çamurla kirletti!");
+                document.getElementById('main-card').classList.add('shake');
+                state.score = Math.max(0, state.score - 20);
+                document.getElementById('score-display').innerText = state.score;
+
+                setTimeout(() => {
+                    document.getElementById('main-card').classList.remove('shake');
+                    hideFeedback();
+                    if (state.current.variantIdx < 2) state.current.variantIdx++;
+                    state.retryQueue.push(state.current);
+                    nextQuestion();
+                    state.isProcessing = false;
+                }, 2500);
+            }
+        }
+
+        async function handleSlotClick(index) {
+            if (!state.waitingForPuzzleClick || index !== state.pieces) return;
+            state.waitingForPuzzleClick = false;
+            const slot = document.getElementById(`slot-${index}`);
+            slot.classList.remove('clickable');
+            const piece = document.getElementById(`piece-${index}`);
+            piece.classList.add('placed');
+            state.pieces++;
+            document.getElementById('score-display').innerText = state.score;
+            document.getElementById('progress-bar').style.width = `${(state.pieces/6)*100}%`;
+            document.getElementById('badge-display').innerHTML += '🧩';
+            await new Promise(r => setTimeout(r, 1500));
+            const pView = document.getElementById('puzzle-view');
+            pView.classList.remove('active');
+            await new Promise(r => setTimeout(r, 400));
+            state.isProcessing = false;
+            nextQuestion();
+        }
+
+        function showFeedback(text, icon, colorClass, subText) {
+            const overlay = document.getElementById('feedback-overlay');
+            const txt = document.getElementById('feedback-text');
+            const sub = document.getElementById('feedback-sub');
+            const hero = document.querySelector('.hero-img-feedback');
+            if (text.includes("MİKROP")) {
+                hero.src = "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png";
+                hero.style.borderColor = "#ef4444";
+            } else {
+                hero.src = "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png";
+                hero.style.borderColor = "#3b82f6";
+            }
+            txt.innerText = text;
+            txt.className = `text-5xl font-bold ${colorClass} drop-shadow-lg`;
+            sub.innerText = subText;
+            overlay.style.display = 'flex';
+        }
+
+        function hideFeedback() {
+            document.getElementById('feedback-overlay').style.display = 'none';
+        }
+
+        function endGame() {
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('question-view').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            const pView = document.getElementById('puzzle-view');
+            pView.classList.add('active');
+            document.getElementById('puzzle-ghost').style.opacity = '0';
+            document.getElementById('final-stats').innerHTML = `
+                <div class="text-center">
+                    <p class="text-slate-400 mb-4 uppercase tracking-widest">KAHRAMAN: <span class="text-white">${state.userId}</span></p>
+                    <p class="text-white font-bold tracking-widest uppercase">Tebrikler Kahraman! Tüm puzzle parçalarını topladın ve odayı mikroplardan tamamen temizledin!</p>
+                </div>
+            `;
+            confetti({ particleCount: 400, spread: 150, origin: { y: 0.6 } });
+        }
+
+        function downloadResults() {
+            if (state.logs.length === 0) return;
+            const ws = XLSX.utils.json_to_sheet(state.logs);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Puzzle Sonuçları");
+            
+            // Tarih bilgisini dosya adına ekle
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('tr-TR').replace(/\./g, '-');
+            const fileName = `${state.firstName}-${state.lastName}-${dateStr}.xlsx`;
+            
+            XLSX.writeFile(wb, fileName);
+        }
+    </script>
+</body>
+</html>
