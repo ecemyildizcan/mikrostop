@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mikrop Avcıları: Puzzle Görevi</title>
-    <!-- Baloo 2 fontu yüklendi -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -21,18 +20,17 @@
             height: 100vh;
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
         
-        .font-baloo-bold { font-family: 'Baloo 2', cursive; font-weight: 800; }
+        .font-baloo-bold { font-weight: 800; }
         
         .game-card {
             background: rgba(30, 41, 59, 1);
             border: 4px solid rgba(255, 255, 255, 0.1);
             border-radius: 2.5rem;
             width: 95%;
-            max-width: 800px;
-            height: 85vh;
+            max-width: 900px;
+            height: 90vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -40,19 +38,20 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
         }
 
-        /* Puzzle Görünümü */
+        /* Puzzle Görünümü (5x2 Grid) */
         #puzzle-view {
             position: absolute;
             inset: 0;
             z-index: 50;
             background: #1e293b;
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             grid-template-rows: repeat(2, 1fr);
-            gap: 2px;
+            gap: 4px;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             transform: translateY(100%);
             pointer-events: none;
+            padding: 10px;
         }
 
         #puzzle-view.active {
@@ -66,7 +65,7 @@
             background-image: url('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/start.JPEG');
             background-size: cover;
             background-position: center;
-            opacity: 0.2;
+            opacity: 0.15;
             z-index: 0;
         }
 
@@ -75,8 +74,7 @@
             z-index: 1;
             border: 2px dashed rgba(255, 255, 255, 0.1);
             overflow: hidden;
-            background: rgba(0,0,0,0.3);
-            cursor: default;
+            background: rgba(0,0,0,0.4);
             transition: all 0.3s;
         }
 
@@ -97,10 +95,10 @@
             position: absolute;
             inset: 0;
             background-image: url('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/end.JPEG');
-            background-size: 300% 200%;
+            background-size: 500% 200%; /* 5x2 olduğu için */
             opacity: 0;
-            transform: scale(2) rotate(30deg);
-            transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: scale(2) rotate(20deg);
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .puzzle-piece.placed {
@@ -129,10 +127,9 @@
         }
 
         @keyframes mudSplatAnimation {
-            0% { transform: scale(0.2) rotate(0deg); opacity: 0; }
-            10% { transform: scale(1.1) rotate(15deg); opacity: 0.9; }
-            20% { transform: scale(1) rotate(10deg); opacity: 1; }
-            80% { transform: scale(1) translateY(10px); opacity: 1; }
+            0% { transform: scale(0.2); opacity: 0; }
+            15% { transform: scale(1.1); opacity: 1; }
+            80% { transform: scale(1) translateY(20px); opacity: 1; }
             100% { transform: scale(0.8) translateY(100vh); opacity: 0; }
         }
 
@@ -150,17 +147,10 @@
             transition: all 0.2s;
             border-bottom: 4px solid rgba(0,0,0,0.4);
             cursor: pointer;
-            pointer-events: auto;
             font-weight: 700;
         }
-        .btn-game:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.1);
-        }
-        .btn-game:active {
-            transform: translateY(2px);
-            border-bottom-width: 1px;
-        }
+        .btn-game:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        .btn-game:active { transform: translateY(2px); border-bottom-width: 1px; }
 
         .shake { animation: shake 0.5s ease-in-out; }
         @keyframes shake {
@@ -193,39 +183,29 @@
             align-items: center;
             justify-content: center;
             padding: 2rem;
-            pointer-events: auto;
             overflow: hidden;
-        }
-
-        .input-group {
-            width: 100%;
-            max-width: 350px;
-            margin-bottom: 1.5rem;
-            z-index: 30;
         }
 
         .game-input {
             width: 100%;
+            max-width: 350px;
             padding: 1rem 1.5rem;
-            border-radius: 1rem;
+            border-radius: 1.2rem;
             background: rgba(30, 41, 59, 0.8);
-            border: 2px solid rgba(59, 130, 246, 0.5);
+            border: 3px solid rgba(59, 130, 246, 0.4);
             color: white;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-family: 'Baloo 2', cursive;
-            transition: all 0.3s;
             outline: none;
+            margin-bottom: 1rem;
+            text-align: center;
         }
 
-        .game-input:focus {
-            border-color: #3b82f6;
-            background: rgba(30, 41, 59, 1);
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
-        }
+        .game-input:focus { border-color: #3b82f6; background: #1e293b; }
 
         .hero-img-feedback {
-            width: 180px;
-            height: 180px;
+            width: 200px;
+            height: 200px;
             border-radius: 50%;
             border: 8px solid #3b82f6;
             margin-bottom: 1.5rem;
@@ -234,7 +214,7 @@
             box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
         }
 
-        /* Karakter Animasyonları */
+        /* Animasyonlar */
         .bounce-mikrop { animation: mini-bounce-right 2s infinite ease-in-out; }
         .bounce-kahraman { animation: mini-bounce-left 2s infinite ease-in-out; animation-delay: 0.5s; }
         .hero-breathing { animation: breathing 3s infinite ease-in-out; transform-origin: bottom left; }
@@ -244,7 +224,6 @@
         @keyframes mini-bounce-left { 0%, 100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-25px) rotate(5deg); } }
 
         .side-character { transition: transform 0.3s ease; }
-        .side-character:hover { transform: scale(1.15) !important; }
     </style>
 </head>
 <body>
@@ -254,51 +233,44 @@
     <div class="game-card" id="main-card">
         <!-- Başlangıç -->
         <div id="start-screen">
-            <!-- Karakterler -->
             <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
-                 class="absolute -left-10 bottom-10 w-64 md:w-80 side-character hero-breathing z-10" alt="Kahraman">
+                 class="absolute -left-12 bottom-10 w-64 md:w-80 side-character hero-breathing z-10" alt="Kahraman">
             
             <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" 
-                 class="absolute -right-10 bottom-10 w-64 md:w-80 side-character z-10 animate-pulse" alt="Mikrop">
+                 class="absolute -right-12 bottom-10 w-64 md:w-80 side-character z-10 animate-pulse" alt="Mikrop">
 
             <div class="z-20 flex flex-col items-center w-full">
-                <div class="relative mb-2">
+                <div class="relative mb-4">
                     <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
-                         class="absolute -top-16 -left-16 w-24 h-24 bounce-kahraman" alt="Zıplayan Kahraman">
-                    
-                    <h1 class="text-6xl md:text-8xl font-baloo-bold text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] leading-none uppercase">MİKROSTOP</h1>
-                    
+                         class="absolute -top-12 -left-12 w-20 h-20 bounce-kahraman" alt="Kahraman">
+                    <h1 class="text-6xl md:text-8xl font-baloo-bold text-white drop-shadow-xl leading-none uppercase">MİKROSTOP</h1>
                     <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" 
-                         class="absolute -top-16 -right-16 w-24 h-24 bounce-mikrop" alt="Zıplayan Mikrop">
+                         class="absolute -top-12 -right-12 w-20 h-20 bounce-mikrop" alt="Mikrop">
                 </div>
                 
-                <h2 class="text-3xl md:text-4xl font-baloo-bold text-blue-500 mb-8 tracking-widest drop-shadow-md uppercase text-center">MİKROP AVCILARI</h2>
+                <h2 class="text-3xl md:text-4xl font-baloo-bold text-blue-400 mb-8 tracking-tighter uppercase">MİKROP AVCILARI</h2>
                 
-                <!-- İsim Soyisim Giriş Alanı -->
-                <div class="input-group">
-                    <input type="text" id="user-name" class="game-input mb-3" placeholder="Adınız" autocomplete="off">
-                    <input type="text" id="user-surname" class="game-input" placeholder="Soyadınız" autocomplete="off">
-                </div>
+                <input type="text" id="user-name" class="game-input" placeholder="Adınız" autocomplete="off">
+                <input type="text" id="user-surname" class="game-input" placeholder="Soyadınız" autocomplete="off">
 
-                <button onclick="startGame()" class="btn-game bg-blue-600 px-20 py-6 rounded-full text-4xl text-white shadow-[0_10px_0_rgb(29,78,216)] active:shadow-none mb-6">
+                <button onclick="startGame()" class="btn-game bg-blue-600 px-20 py-6 rounded-full text-4xl text-white shadow-[0_10px_0_rgb(29,78,216)] active:shadow-none mt-4">
                     BAŞLA
                 </button>
-                <p class="text-slate-200 text-lg font-bold bg-black/40 px-6 py-2 rounded-full backdrop-blur-sm">Odayı temizlemek için ismini gir ve başla!</p>
             </div>
         </div>
 
         <!-- HUD -->
         <div id="hud" class="hidden bg-slate-800 p-4 flex justify-between items-center px-8 border-b border-white/10 relative z-30">
             <div class="flex flex-col">
-                <span class="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Puzzle Durumu</span>
+                <span class="text-slate-400 text-[11px] font-bold uppercase">Soru İlerlemesi</span>
                 <div class="w-32 h-3 bg-slate-900 rounded-full mt-1 overflow-hidden">
                     <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-700" style="width: 0%"></div>
                 </div>
             </div>
             <div id="badge-display" class="text-2xl"></div>
             <div class="text-right">
-                <span id="display-name" class="text-blue-400 text-[12px] font-bold block">Kullanıcı</span>
-                <div id="score-display" class="text-2xl font-bold text-yellow-400">0</div>
+                <span id="display-name" class="text-blue-400 text-[12px] font-bold block uppercase">Kullanıcı</span>
+                <span class="text-slate-400 text-[10px] font-bold">PUZZLE: <span id="puzzle-count">0</span>/10</span>
             </div>
         </div>
 
@@ -306,10 +278,10 @@
         <div id="question-view" class="hidden">
             <div class="space-y-8">
                 <div class="text-center">
-                    <span id="question-category" class="bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-bold uppercase tracking-widest">KATEGORİ</span>
+                    <span id="question-num" class="bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-bold uppercase tracking-widest shadow-lg">SORU 1</span>
                 </div>
-                <h2 id="question-text" class="text-3xl md:text-4xl font-bold text-center px-4 text-white leading-tight">Soru Yükleniyor...</h2>
-                <div id="options-container" class="grid grid-cols-1 gap-4 max-w-md mx-auto w-full"></div>
+                <h2 id="question-text" class="text-3xl md:text-4xl font-bold text-center px-4 text-white leading-tight">...</h2>
+                <div id="options-container" class="grid grid-cols-1 gap-4 max-w-lg mx-auto w-full"></div>
             </div>
         </div>
 
@@ -320,57 +292,39 @@
 
         <!-- Feedback Overlay -->
         <div id="feedback-overlay">
-            <div id="feedback-hero-container">
-                <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" class="hero-img-feedback" alt="Kahraman">
-            </div>
+            <img src="" id="feedback-hero" class="hero-img-feedback" alt="Kahraman">
             <div id="feedback-text" class="text-5xl font-bold mb-2"></div>
-            <div id="feedback-sub" class="text-slate-300 text-2xl font-bold max-w-md"></div>
+            <div id="feedback-sub" class="text-slate-300 text-2xl font-bold max-w-lg"></div>
         </div>
 
         <!-- Final -->
         <div id="result-screen" class="hidden absolute inset-0 z-[300] bg-slate-900 flex flex-col items-center justify-center p-8 text-center">
-            <h2 class="text-7xl font-bold text-yellow-400 mb-6 uppercase">TEBRİKLER!</h2>
-            <div class="text-9xl mb-8">🏆</div>
-            <div id="final-stats" class="text-3xl text-white mb-10 space-y-3 bg-slate-800/50 p-8 rounded-3xl border-2 border-white/10"></div>
+            <h2 id="final-title" class="text-7xl font-bold text-yellow-400 mb-6 uppercase">OYUN BİTTİ</h2>
+            <div id="final-icon" class="text-9xl mb-8">🧼</div>
+            <div id="final-stats" class="text-2xl text-white mb-10 space-y-3 bg-slate-800/50 p-8 rounded-3xl border-2 border-white/10 max-w-2xl"></div>
             <div class="flex flex-col gap-4 w-full max-w-xs">
-                <button onclick="downloadResults()" class="btn-game bg-amber-500 text-white px-10 py-5 rounded-2xl font-black text-xl shadow-[0_6px_0_rgb(180,83,9)]">📊 RAPORU İNDİR</button>
-                <button onclick="location.reload()" class="btn-game bg-green-600 text-white px-10 py-5 rounded-2xl font-black text-xl shadow-[0_6px_0_rgb(22,101,52)]">TEKRAR OYNA</button>
+                <button onclick="downloadResults()" class="btn-game bg-amber-500 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-[0_6px_0_rgb(180,83,9)] uppercase">📊 RAPORU İNDİR</button>
+                <button onclick="location.reload()" class="btn-game bg-green-600 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-[0_6px_0_rgb(22,101,52)] uppercase">TEKRAR DENE</button>
             </div>
         </div>
     </div>
 
     <script>
         const questionsData = [
-            { id: 1, concept: "Hazırlık", variants: {
-                DY: { q: "El yıkamaya başlamadan önce ellerimizi suyla ıslatırız.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" },
-                BD: { q: "El yıkamaya başlamadan önce ellerimizi önce _________.", opts: ["Sabunlarız", "Kurularız", "Islatırız"], ans: "Islatırız" },
-                CS: { q: "El yıkamaya başlamadan önce ellerimizi önce ne yaparız?", opts: ["Sabunlarız", "Islatırız", "Kurularız"], ans: "Islatırız" }
-            }},
-            { id: 2, concept: "Sıralama", variants: {
-                DY: { q: "Doğru Sıra: Islat → Sabunla → Parmak Arası → Durula. Bu doğru mu?", opts: ["EVET", "HAYIR"], ans: "EVET" },
-                BD: { q: "El yıkarken önce ellerimizi ________, sonra sabun alırız.", opts: ["Islatırız", "Kurularız", "Ovuştururuz"], ans: "Islatırız" },
-                CS: { q: "Aşağıdakilerden hangisi doğru el yıkama sırasını gösterir?", opts: ["Sabun-Durula-Islat", "Islat-Sabun-Durula", "Durula-Sabun-Islat"], ans: "Islat-Sabun-Durula" }
-            }},
-            { id: 3, concept: "Mikroplar", variants: {
-                DY: { q: "Sabunla yıkadığımızda 'geçici mikroplar' uzaklaşır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" },
-                BD: { q: "Sabunla el yıkadığımızda bizi hasta edebilen __________ mikroplar uzaklaşır.", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici" },
-                CS: { q: "Bizi hastalandıran ve sabunla uzaklaşan mikroplar hangileridir?", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici" }
-            }},
-            { id: 4, concept: "Süre", variants: {
-                DY: { q: "Ellerimizi yıkarken 5 saniye ovuşturmak yeterlidir.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
-                BD: { q: "Ellerimizi yıkarken en az _______’e kadar saymalıyız.", opts: ["5", "10", "15"], ans: "15" },
-                CS: { q: "Ellerimizi yıkarken kaça kadar saymalıyız?", opts: ["5", "10", "15"], ans: "15" }
-            }},
-            { id: 5, concept: "Amaç", variants: {
-                DY: { q: "El yıkamanın temel amacı ellerin güzel kokmasıdır.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
-                BD: { q: "El yıkamanın temel amacı __________ kurtulmaktır.", opts: ["Mikroplardan", "Kirden", "Kötü kokudan"], ans: "Mikroplardan" },
-                CS: { q: "El yıkamanın amacı nedir?", opts: ["Temiz görünmek", "Mikroplardan kurtulmak", "Güzel kokmak"], ans: "Mikroplardan kurtulmak" }
-            }},
-            { id: 6, concept: "Genel", variants: {
-                DY: { q: "Ellerimizi sadece kirli görünce yıkamalıyız.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
-                BD: { q: "Tırnakların içi kir ve mikropla dolabilir, bu yüzden ________.", opts: ["Yıkanmalıdır", "Kesilmemelidir", "Saklanmalıdır"], ans: "Yıkanmalıdır" },
-                CS: { q: "Elleri yıkarken hangisi temizliği artırır?", opts: ["Sadece su", "Hızlı yıkama", "Parmak aralarını sürtmek"], ans: "Parmak aralarını sürtmek" }
-            }}
+            { id: 1, q: "El yıkamanın temel amacı _________ kurtulmaktır.", opts: ["Kirden", "Kötü Kokudan", "Mikroplardan"], ans: "Mikroplardan", type: "BD" },
+            { id: 2, q: "Ellerimizi sadece kirli görünce yıkamalıyız.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ", type: "DY" },
+            { id: 3, q: "El yıkamaya başlamadan önce ellerimizi önce _________.", opts: ["Sabunlarız", "Kurularız", "Islatırız"], ans: "Islatırız", type: "BD" },
+            { id: 4, q: "Tırnakların içi kir ve mikropla dolabilir, bu yüzden yıkanmalıdır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU", type: "DY" },
+            { id: 5, q: "El yıkarken mikropların EN ÇOK saklandığı yer hangisidir?", opts: ["Avuç İçi", "Parmak Araları", "El Üstü"], ans: "Parmak Araları", type: "CS" },
+            { id: 6, q: "Hangisi doğru el yıkama sırasını gösterir?", opts: [
+                "Sabunu Al → Durula → Parmak Arası → Islat",
+                "Ellerini Islat → Sabun Al → Parmak Arası → Durula",
+                "Durula → Sabun Al → Islat → Parmak Arası"
+            ], ans: "Ellerini Islat → Sabun Al → Parmak Arası → Durula", type: "CS" },
+            { id: 7, q: "Ellerimizi yıkarken kaça kadar saymalıyız?", opts: ["5", "10", "15"], ans: "15", type: "CS" },
+            { id: 8, q: "Elleri yıkarken sadece su kullanmak mikropları tamamen yok eder.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ", type: "DY" },
+            { id: 9, q: "Sabunla el yıkadığımızda bizi hasta edebilen _________ mikroplar uzaklaşır.", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici", type: "BD" },
+            { id: 10, q: "Elleri sabunlarken parmak aralarını birbirine sürtmek temizliği artırır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU", type: "DY" }
         ];
 
         let state = {
@@ -378,27 +332,31 @@
             lastName: "",
             score: 0,
             pieces: 0,
-            activeQueue: [],
-            retryQueue: [],
+            currentIndex: 0,
             isProcessing: false,
             waitingForPuzzleClick: false,
             logs: [],
-            attempts: {},
             userId: ""
         };
 
         function initPuzzle() {
             const container = document.getElementById('puzzle-view');
             container.querySelectorAll('.puzzle-slot').forEach(s => s.remove());
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 10; i++) {
                 const slot = document.createElement('div');
                 slot.className = 'puzzle-slot';
                 slot.id = `slot-${i}`;
                 slot.onclick = () => handleSlotClick(i);
+
                 const piece = document.createElement('div');
                 piece.className = 'puzzle-piece';
                 piece.id = `piece-${i}`;
-                piece.style.backgroundPosition = `${(i % 3) * 50}% ${Math.floor(i / 3) * 100}%`;
+                
+                // 5x2 background calculation
+                const col = i % 5;
+                const row = Math.floor(i / 5);
+                piece.style.backgroundPosition = `${col * 25}% ${row * 100}%`;
+                
                 slot.appendChild(piece);
                 container.appendChild(slot);
             }
@@ -406,26 +364,20 @@
 
         function triggerMudEffect() {
             const container = document.getElementById('mud-container');
-            const splatCount = 35;
-            for (let i = 0; i < splatCount; i++) {
+            for (let i = 0; i < 35; i++) {
                 const splat = document.createElement('div');
                 splat.className = 'mud-splat';
                 const size = Math.random() * 80 + 20;
-                const r1 = Math.random() * 50 + 20;
-                const r2 = Math.random() * 50 + 20;
-                const r3 = Math.random() * 50 + 20;
-                const r4 = Math.random() * 50 + 20;
+                const r = () => Math.random() * 50 + 20;
                 splat.style.width = `${size}px`;
-                splat.style.height = `${size * (Math.random() * 0.5 + 0.8)}px`;
-                splat.style.borderRadius = `${r1}% ${100-r1}% ${r2}% ${100-r2}% / ${r3}% ${r4}% ${100-r4}% ${100-r3}%`;
+                splat.style.height = `${size * 0.9}px`;
+                splat.style.borderRadius = `${r()}% ${r()}% ${r()}% ${r()}%`;
                 splat.style.left = `${Math.random() * 100}vw`;
                 splat.style.top = `${Math.random() * 80}vh`;
-                const delay = Math.random() * 0.5;
-                const duration = Math.random() * 1 + 2;
-                splat.style.animationDelay = `${delay}s`;
-                splat.style.animationDuration = `${duration}s`;
+                const dur = Math.random() * 1 + 2;
+                splat.style.animationDuration = `${dur}s`;
                 container.appendChild(splat);
-                setTimeout(() => splat.remove(), (delay + duration) * 1000);
+                setTimeout(() => splat.remove(), dur * 1000);
             }
         }
 
@@ -433,14 +385,14 @@
             const fName = document.getElementById('user-name').value.trim();
             const lName = document.getElementById('user-surname').value.trim();
 
-            if (fName === "" || lName === "") {
-                alert("Lütfen oyuna başlamadan önce isminizi ve soyisminizi girin!");
+            if (!fName || !lName) {
+                alert("Lütfen isminizi ve soyisminizi girin!");
                 return;
             }
 
             state.firstName = fName;
             state.lastName = lName;
-            state.userId = fName + " " + lName;
+            state.userId = `${fName} ${lName}`;
 
             initPuzzle();
             document.getElementById('start-screen').style.display = 'none';
@@ -448,164 +400,147 @@
             document.getElementById('display-name').innerText = state.userId;
             document.getElementById('question-view').classList.remove('hidden');
             
-            state.activeQueue = questionsData.map(q => {
-                state.attempts[q.id] = 1;
-                return {...q, variantIdx: 0, order: ['DY', 'BD', 'CS']};
-            });
-            
-            nextQuestion();
-        }
-
-        function nextQuestion() {
-            if (state.pieces >= 6) {
-                endGame();
-                return;
-            }
-            if (state.retryQueue.length > 0 && (state.activeQueue.length === 0 || Math.random() > 0.4)) {
-                state.current = state.retryQueue.shift();
-            } else {
-                state.current = state.activeQueue.shift();
-            }
             renderQuestion();
         }
 
         function renderQuestion() {
-            const q = state.current;
-            const variant = q.variants[q.order[q.variantIdx]];
-            document.getElementById('question-category').innerText = q.concept;
-            document.getElementById('question-text').innerText = variant.q;
+            if (state.currentIndex >= 10) {
+                endGame();
+                return;
+            }
+
+            const q = questionsData[state.currentIndex];
+            document.getElementById('question-num').innerText = `SORU ${q.id}`;
+            document.getElementById('question-text').innerText = q.q;
+            
             const container = document.getElementById('options-container');
             container.innerHTML = '';
+            
             const colors = ['bg-blue-600', 'bg-indigo-600', 'bg-violet-600'];
-            variant.opts.forEach((opt, i) => {
+            q.opts.forEach((opt, i) => {
                 const btn = document.createElement('button');
-                btn.className = `btn-game ${colors[i % 3]} text-white p-6 rounded-2xl font-bold text-2xl shadow-[0_6px_0_rgba(0,0,0,0.3)]`;
+                btn.className = `btn-game ${colors[i % 3]} text-white p-5 rounded-2xl font-bold text-2xl shadow-[0_6px_0_rgba(0,0,0,0.3)]`;
                 btn.innerText = opt;
-                btn.onclick = () => checkAnswer(opt, variant.ans);
+                btn.onclick = () => checkAnswer(opt, q.ans);
                 container.appendChild(btn);
             });
+
+            document.getElementById('progress-bar').style.width = `${(state.currentIndex / 10) * 100}%`;
         }
 
         async function checkAnswer(selected, correct) {
             if (state.isProcessing) return;
             state.isProcessing = true;
+            
             const isCorrect = selected.toUpperCase() === correct.toUpperCase();
+            const currentQ = questionsData[state.currentIndex];
 
             if (isCorrect) {
-                const questionScore = 100 - ((state.attempts[state.current.id] - 1) * 20);
                 state.score += 100;
                 
-                // Log kaydı: İsim ve Soyisim sütunlarını içeren yapı
                 state.logs.push({
-                    "Ad": state.firstName,
-                    "Soyad": state.lastName,
-                    "Soru No": state.current.id,
-                    "Deneme Sayısı": state.attempts[state.current.id],
-                    "Sonuç": "DOĞRU",
-                    "Puan": questionScore,
+                    "Ad": state.firstName, "Soyad": state.lastName,
+                    "Soru No": currentQ.id, "Sonuç": "DOĞRU", "Puan": 100,
                     "Tarih": new Date().toLocaleString()
                 });
 
-                showFeedback("TEBRİKLER!", "🏆", "text-yellow-400", "Rozet kazandın! Rozetini puzzle'ı tamamlamak için kullan!");
-                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                showFeedback("HARİKA!", "✅", "text-blue-400", "Rozet kazandın! Rozetini puzzle'ı tamamlamak için kullan!");
+                confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
                 
-                await new Promise(r => setTimeout(r, 2500));
+                await new Promise(r => setTimeout(r, 2000));
                 hideFeedback();
 
                 const pView = document.getElementById('puzzle-view');
                 pView.classList.add('active');
-                
-                const nextSlot = document.getElementById(`slot-${state.pieces}`);
-                if (nextSlot) nextSlot.classList.add('clickable');
-                
+                document.getElementById(`slot-${state.currentIndex}`).classList.add('clickable');
                 state.waitingForPuzzleClick = true;
             } else {
-                state.attempts[state.current.id]++;
+                state.logs.push({
+                    "Ad": state.firstName, "Soyad": state.lastName,
+                    "Soru No": currentQ.id, "Sonuç": "YANLIŞ", "Puan": 0,
+                    "Tarih": new Date().toLocaleString()
+                });
+
                 triggerMudEffect();
-                showFeedback("MİKROP SALDIRISI!", "🦠", "text-red-500", "Hata yaptın! Mikroplar odayı çamurla kirletti!");
+                showFeedback("EYVAH!", "🦠", "text-red-500", "Yanlış cevap! Mikroplar odayı çamurla kirletti!");
                 document.getElementById('main-card').classList.add('shake');
-                state.score = Math.max(0, state.score - 20);
-                document.getElementById('score-display').innerText = state.score;
 
                 setTimeout(() => {
                     document.getElementById('main-card').classList.remove('shake');
                     hideFeedback();
-                    if (state.current.variantIdx < 2) state.current.variantIdx++;
-                    state.retryQueue.push(state.current);
-                    nextQuestion();
+                    state.currentIndex++;
                     state.isProcessing = false;
+                    renderQuestion();
                 }, 2500);
             }
         }
 
         async function handleSlotClick(index) {
-            if (!state.waitingForPuzzleClick || index !== state.pieces) return;
+            if (!state.waitingForPuzzleClick || index !== state.currentIndex) return;
+            
             state.waitingForPuzzleClick = false;
-            const slot = document.getElementById(`slot-${index}`);
-            slot.classList.remove('clickable');
-            const piece = document.getElementById(`piece-${index}`);
-            piece.classList.add('placed');
+            document.getElementById(`slot-${index}`).classList.remove('clickable');
+            document.getElementById(`piece-${index}`).classList.add('placed');
+            
             state.pieces++;
-            document.getElementById('score-display').innerText = state.score;
-            document.getElementById('progress-bar').style.width = `${(state.pieces/6)*100}%`;
-            document.getElementById('badge-display').innerHTML += '🧩';
-            await new Promise(r => setTimeout(r, 1500));
-            const pView = document.getElementById('puzzle-view');
-            pView.classList.remove('active');
-            await new Promise(r => setTimeout(r, 400));
+            document.getElementById('puzzle-count').innerText = state.pieces;
+
+            await new Promise(r => setTimeout(r, 1200));
+            document.getElementById('puzzle-view').classList.remove('active');
+            
+            state.currentIndex++;
             state.isProcessing = false;
-            nextQuestion();
+            renderQuestion();
         }
 
         function showFeedback(text, icon, colorClass, subText) {
             const overlay = document.getElementById('feedback-overlay');
-            const txt = document.getElementById('feedback-text');
-            const sub = document.getElementById('feedback-sub');
-            const hero = document.querySelector('.hero-img-feedback');
-            if (text.includes("MİKROP")) {
-                hero.src = "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png";
-                hero.style.borderColor = "#ef4444";
-            } else {
-                hero.src = "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png";
-                hero.style.borderColor = "#3b82f6";
-            }
-            txt.innerText = text;
-            txt.className = `text-5xl font-bold ${colorClass} drop-shadow-lg`;
-            sub.innerText = subText;
+            const hero = document.getElementById('feedback-hero');
+            
+            hero.src = text === "HARİKA!" 
+                ? "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
+                : "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png";
+            hero.style.borderColor = text === "HARİKA!" ? "#3b82f6" : "#ef4444";
+
+            document.getElementById('feedback-text').innerText = text;
+            document.getElementById('feedback-text').className = `text-6xl font-bold ${colorClass}`;
+            document.getElementById('feedback-sub').innerText = subText;
             overlay.style.display = 'flex';
         }
 
-        function hideFeedback() {
-            document.getElementById('feedback-overlay').style.display = 'none';
-        }
+        function hideFeedback() { document.getElementById('feedback-overlay').style.display = 'none'; }
 
         function endGame() {
             document.getElementById('hud').classList.add('hidden');
             document.getElementById('question-view').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
+            
             const pView = document.getElementById('puzzle-view');
             pView.classList.add('active');
             document.getElementById('puzzle-ghost').style.opacity = '0';
-            document.getElementById('final-stats').innerHTML = `
-                <div class="text-center">
-                    <p class="text-slate-400 mb-4 uppercase tracking-widest">KAHRAMAN: <span class="text-white">${state.userId}</span></p>
-                    <p class="text-white font-bold tracking-widest uppercase">Tebrikler Kahraman! Tüm puzzle parçalarını topladın ve odayı mikroplardan tamamen temizledin!</p>
-                </div>
-            `;
-            confetti({ particleCount: 400, spread: 150, origin: { y: 0.6 } });
+            
+            const stats = document.getElementById('final-stats');
+            if (state.pieces === 10) {
+                document.getElementById('final-title').innerText = "TEBRİKLER!";
+                stats.innerHTML = `<p class="uppercase font-bold text-white">KAHRAMAN: ${state.userId}</p>
+                                   <p>Harika bir iş çıkardın! Tüm parçaları topladın ve odayı mikroplardan tamamen temizledin!</p>`;
+                confetti({ particleCount: 300, spread: 100 });
+            } else {
+                document.getElementById('final-title').innerText = "OYUN BİTTİ";
+                stats.innerHTML = `<p class="uppercase font-bold text-white mb-4">KAHRAMAN: ${state.userId}</p>
+                                   <p class="text-blue-300">Puzzle henüz tamamlanmadı! El yıkama adımlarını tekrar gözden geçir. Bir sonraki testte görüşmek üzere.</p>`;
+            }
         }
 
         function downloadResults() {
             if (state.logs.length === 0) return;
             const ws = XLSX.utils.json_to_sheet(state.logs);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Puzzle Sonuçları");
+            XLSX.utils.book_append_sheet(wb, ws, "Rapor");
             
-            // Tarih bilgisini dosya adına ekle
             const now = new Date();
-            const dateStr = now.toLocaleDateString('tr-TR').replace(/\./g, '-');
+            const dateStr = `${now.getDate()}-${now.getMonth()+1}-${now.getFullYear()}`;
             const fileName = `${state.firstName}-${state.lastName}-${dateStr}.xlsx`;
-            
             XLSX.writeFile(wb, fileName);
         }
     </script>
