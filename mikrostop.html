@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mikrop Avcıları: Puzzle Görevi</title>
+    <!-- Baloo 2 fontu yüklendi -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Baloo 2', cursive;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        .font-baloo-bold { font-weight: 800; }
+        
+        .game-card {
+            background: rgba(30, 41, 59, 1);
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-radius: 2.5rem;
+            width: 95%;
+            max-width: 900px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Puzzle Görünümü (5x2 Grid) */
+        #puzzle-view {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            background: #1e293b;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 4px;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(100%);
+            pointer-events: none;
+            padding: 10px;
+        }
+
+        #puzzle-view.active {
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        #puzzle-ghost {
+            position: absolute;
+            inset: 0;
+            background-image: url('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/start.JPEG');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.15;
+            z-index: 0;
+        }
+
+        .puzzle-slot {
+            position: relative;
+            z-index: 1;
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            background: rgba(0,0,0,0.4);
+            transition: all 0.3s;
+        }
+
+        .puzzle-slot.clickable {
+            cursor: pointer;
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            animation: pulse-border 1.5s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: rgba(59, 130, 246, 0.3); }
+            50% { border-color: rgba(59, 130, 246, 1); }
+            100% { border-color: rgba(59, 130, 246, 0.3); }
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            inset: 0;
+            background-image: url('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/end.JPEG');
+            background-size: 500% 200%;
+            opacity: 0;
+            transform: scale(2) rotate(20deg);
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .puzzle-piece.placed {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+
+        /* Çamur Efekti */
+        .mud-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 150;
+        }
+
+        .mud-splat {
+            position: absolute;
+            background: #4a3427;
+            opacity: 0;
+            animation: mudSplatAnimation 3s ease-out forwards;
+            box-shadow: inset 5px 5px 15px rgba(0,0,0,0.4);
+            filter: blur(1px);
+        }
+
+        @keyframes mudSplatAnimation {
+            0% { transform: scale(0.2); opacity: 0; }
+            15% { transform: scale(1.1); opacity: 1; }
+            80% { transform: scale(1) translateY(20px); opacity: 1; }
+            100% { transform: scale(0.8) translateY(100vh); opacity: 0; }
+        }
+
+        /* Soru Alanı */
+        #question-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 2rem;
+            z-index: 10;
+        }
+
+        .btn-game {
+            transition: all 0.2s;
+            border-bottom: 4px solid rgba(0,0,0,0.4);
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .btn-game:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        .btn-game:active { transform: translateY(2px); border-bottom-width: 1px; }
+
+        .shake { animation: shake 0.5s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        #feedback-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.98);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        /* Başlangıç Ekranı */
+        #start-screen {
+            position: absolute;
+            inset: 0;
+            z-index: 200;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        .game-input {
+            width: 100%;
+            max-width: 350px;
+            padding: 1rem 1.5rem;
+            border-radius: 1.2rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 3px solid rgba(59, 130, 246, 0.4);
+            color: white;
+            font-size: 1.3rem;
+            font-family: 'Baloo 2', cursive;
+            outline: none;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .game-input:focus { border-color: #3b82f6; background: #1e293b; }
+
+        .hero-img-feedback {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: 8px solid #3b82f6;
+            margin-bottom: 1.5rem;
+            object-fit: cover;
+            background: white;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+        }
+
+        /* Karakter Animasyonları */
+        .bounce-mikrop { animation: mini-bounce-right 2s infinite ease-in-out; }
+        .bounce-kahraman { animation: mini-bounce-left 2s infinite ease-in-out; animation-delay: 0.5s; }
+        .hero-breathing { animation: breathing 3s infinite ease-in-out; transform-origin: bottom left; }
+
+        @keyframes breathing { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        @keyframes mini-bounce-right { 0%, 100% { transform: translateY(0) rotate(5deg); } 50% { transform: translateY(-25px) rotate(-5deg); } }
+        @keyframes mini-bounce-left { 0%, 100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-25px) rotate(5deg); } }
+
+        .side-character { transition: transform 0.3s ease; }
+    </style>
+</head>
+<body>
+
+    <div id="mud-container" class="mud-container"></div>
+
+    <div class="game-card" id="main-card">
+        <!-- Başlangıç -->
+        <div id="start-screen">
+            <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
+                 class="absolute -left-12 bottom-10 w-64 md:w-80 side-character hero-breathing z-10" alt="Kahraman">
+            
+            <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" 
+                 class="absolute -right-12 bottom-10 w-64 md:w-80 side-character z-10 animate-pulse" alt="Mikrop">
+
+            <div class="z-20 flex flex-col items-center w-full">
+                <div class="relative mb-4">
+                    <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
+                         class="absolute -top-12 -left-12 w-20 h-20 bounce-kahraman" alt="Kahraman">
+                    <h1 class="text-6xl md:text-8xl font-baloo-bold text-white drop-shadow-xl leading-none uppercase">MİKROSTOP</h1>
+                    <img src="https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png" 
+                         class="absolute -top-12 -right-12 w-20 h-20 bounce-mikrop" alt="Mikrop">
+                </div>
+                
+                <h2 class="text-3xl md:text-4xl font-baloo-bold text-blue-400 mb-8 tracking-tighter uppercase">MİKROP AVCILARI</h2>
+                
+                <input type="text" id="user-name" class="game-input" placeholder="Adınız" autocomplete="off">
+                <input type="text" id="user-surname" class="game-input" placeholder="Soyadınız" autocomplete="off">
+
+                <button onclick="startGame()" class="btn-game bg-blue-600 px-20 py-6 rounded-full text-4xl text-white shadow-[0_10px_0_rgb(29,78,216)] active:shadow-none mt-4">
+                    BAŞLA
+                </button>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud" class="hidden bg-slate-800 p-4 flex justify-between items-center px-8 border-b border-white/10 relative z-30">
+            <div class="flex flex-col">
+                <span class="text-slate-400 text-[11px] font-bold uppercase">Soru İlerlemesi</span>
+                <div class="w-32 h-3 bg-slate-900 rounded-full mt-1 overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-700" style="width: 0%"></div>
+                </div>
+            </div>
+            <div id="badge-display" class="text-2xl"></div>
+            <div class="text-right">
+                <span id="display-name" class="text-blue-400 text-[12px] font-bold block uppercase">Kullanıcı</span>
+                <span class="text-slate-400 text-[11px] font-bold">SORU: <span id="question-count-display">1</span>/10</span>
+            </div>
+        </div>
+
+        <!-- Soru Ekranı -->
+        <div id="question-view" class="hidden">
+            <div class="space-y-8">
+                <div class="text-center">
+                    <span id="question-num" class="bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-bold uppercase tracking-widest shadow-lg">SORU 1</span>
+                </div>
+                <h2 id="question-text" class="text-3xl md:text-4xl font-bold text-center px-4 text-white leading-tight">...</h2>
+                <div id="options-container" class="grid grid-cols-1 gap-4 max-w-lg mx-auto w-full"></div>
+            </div>
+        </div>
+
+        <!-- Puzzle Görünümü -->
+        <div id="puzzle-view">
+            <div id="puzzle-ghost"></div>
+        </div>
+
+        <!-- Feedback Overlay -->
+        <div id="feedback-overlay">
+            <img src="" id="feedback-hero" class="hero-img-feedback" alt="Kahraman">
+            <div id="feedback-text" class="text-5xl font-bold mb-2"></div>
+            <div id="feedback-sub" class="text-slate-300 text-2xl font-bold max-w-lg"></div>
+        </div>
+
+        <!-- Final -->
+        <div id="result-screen" class="hidden absolute inset-0 z-[300] bg-slate-900 flex flex-col items-center justify-center p-8 text-center overflow-y-auto">
+            <!-- Attribution Text - Font size increased (~2pt) -->
+            <div class="text-slate-400 text-lg md:text-xl mb-6 space-y-1 font-medium italic opacity-90 leading-relaxed max-w-xl">
+                <p>Test tasarımı</p>
+                <p>Marmara Üniversitesi Sağlık Bilimleri Enstitüsü</p>
+                <p>Çocuk Sağlığı ve Hastalıkları Hemşireliği</p>
+                <p>Doç. Dr. Çağrı Çövener Özçelik</p>
+                <p>Buse Sarı</p>
+            </div>
+
+            <!-- Title - Font size decreased (~4pt) -->
+            <h2 id="final-title" class="text-5xl md:text-6xl font-bold text-yellow-400 mb-6 uppercase">OYUN BİTTİ</h2>
+            <div id="final-icon" class="text-8xl md:text-9xl mb-8">🧼</div>
+            <div id="final-stats" class="text-xl md:text-2xl text-white mb-10 space-y-3 bg-slate-800/50 p-8 rounded-3xl border-2 border-white/10 max-w-2xl w-full"></div>
+            
+            <div class="flex flex-col gap-4 w-full max-w-xs">
+                <button onclick="downloadResults()" class="btn-game bg-amber-500 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-[0_6px_0_rgb(180,83,9)] uppercase">📊 RAPORU İNDİR</button>
+                <button onclick="location.reload()" class="btn-game bg-green-600 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-[0_6px_0_rgb(22,101,52)] uppercase">TEKRAR DENE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Ses Efektleri (Hata yakalamalı)
+        const successAudio = new Audio('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/sounds/dragon-studio-crowd-cheer-406646.mp3');
+        const failAudio = new Audio('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/sounds/eritnhut1992-buzzer-or-wrong-answer-20582.mp3');
+        successAudio.preload = "auto";
+        failAudio.preload = "auto";
+        successAudio.load();
+        failAudio.load();
+
+        const playSound = async (audio) => {
+            try {
+                audio.currentTime = 0;
+                await audio.play();
+            } catch (e) {
+                console.warn("Ses çalınamadı:", e);
+            }
+        };
+
+        const questionsData = [
+            { id: 1, q: "El yıkamanın temel amacı _________ kurtulmaktır.", opts: ["Kirden", "Kötü Kokudan", "Mikroplardan"], ans: "Mikroplardan" },
+            { id: 2, q: "Ellerimizi sadece kirli görünce yıkamalıyız.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+            { id: 3, q: "El yıkamaya başlamadan önce ellerimizi önce _________.", opts: ["Sabunlarız", "Kurularız", "Islatırız"], ans: "Islatırız" },
+            { id: 4, q: "Tırnakların içi kir ve mikropla dolabilir, bu yüzden yıkanmalıdır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" },
+            { id: 5, q: "El yıkarken mikropların EN ÇOK saklandığı yer hangisidir?", opts: ["Avuç İçi", "Parmak Araları", "El Üstü"], ans: "Parmak Araları" },
+            { id: 6, q: "Aşağıdakilerden hangisi doğru el yıkama sırasını gösterir?", opts: [
+                "Sabunu Al → Durula → Parmak aralarını yıka → Islat",
+                "Ellerini Islat → Sabun Al → Parmak aralarını yıka → Durula",
+                "Durula → Sabun Al → Islat → Parmak aralarını yıka"
+            ], ans: "Ellerini Islat → Sabun Al → Parmak aralarını yıka → Durula" },
+            { id: 7, q: "Ellerimizi yıkarken kaça kadar saymalıyız?", opts: ["5", "10", "15"], ans: "15" },
+            { id: 8, q: "Elleri yıkarken sadece su kullanmak mikropları tamamen yok eder.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+            { id: 9, q: "Sabunla el yıkadığımızda bizi hasta edebilen _________ mikroplar uzaklaşır.", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici" },
+            { id: 10, q: "Elleri sabunlarken parmak aralarını birbirine sürtmek temizliği artırır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" }
+        ];
+
+        let state = {
+            firstName: "",
+            lastName: "",
+            score: 0,
+            pieces: 0,
+            currentIndex: 0,
+            isProcessing: false,
+            waitingForPuzzleClick: false,
+            logs: [],
+            userId: ""
+        };
+
+        function initPuzzle() {
+            const container = document.getElementById('puzzle-view');
+            container.querySelectorAll('.puzzle-slot').forEach(s => s.remove());
+            for (let i = 0; i < 10; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'puzzle-slot';
+                slot.id = `slot-${i}`;
+                slot.onclick = () => handleSlotClick(i);
+
+                const piece = document.createElement('div');
+                piece.className = 'puzzle-piece';
+                piece.id = `piece-${i}`;
+                
+                const col = i % 5;
+                const row = Math.floor(i / 5);
+                piece.style.backgroundPosition = `${col * 25}% ${row * 100}%`;
+                
+                slot.appendChild(piece);
+                container.appendChild(slot);
+            }
+        }
+
+        function triggerMudEffect() {
+            const container = document.getElementById('mud-container');
+            for (let i = 0; i < 35; i++) {
+                const splat = document.createElement('div');
+                splat.className = 'mud-splat';
+                const size = Math.random() * 80 + 20;
+                const r = () => Math.random() * 50 + 20;
+                splat.style.width = `${size}px`;
+                splat.style.height = `${size * 0.9}px`;
+                splat.style.borderRadius = `${r()}% ${r()}% ${r()}% ${r()}%`;
+                splat.style.left = `${Math.random() * 100}vw`;
+                splat.style.top = `${Math.random() * 80}vh`;
+                const dur = Math.random() * 1 + 2;
+                splat.style.animationDuration = `${dur}s`;
+                container.appendChild(splat);
+                setTimeout(() => splat.remove(), dur * 1000);
+            }
+        }
+
+        function startGame() {
+            const fName = document.getElementById('user-name').value.trim();
+            const lName = document.getElementById('user-surname').value.trim();
+
+            if (!fName || !lName) {
+                alert("Lütfen isminizi ve soyisminizi girin!");
+                return;
+            }
+
+            state.firstName = fName;
+            state.lastName = lName;
+            state.userId = `${fName} ${lName}`;
+
+            initPuzzle();
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('display-name').innerText = state.userId;
+            document.getElementById('question-view').classList.remove('hidden');
+            
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            if (state.currentIndex >= 10) {
+                endGame();
+                return;
+            }
+
+            const q = questionsData[state.currentIndex];
+            document.getElementById('question-num').innerText = `SORU ${state.currentIndex + 1}`;
+            document.getElementById('question-count-display').innerText = state.currentIndex + 1;
+            document.getElementById('question-text').innerText = q.q;
+            
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            
+            const colors = ['bg-blue-600', 'bg-indigo-600', 'bg-violet-600'];
+            q.opts.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = `btn-game ${colors[i % 3]} text-white p-5 rounded-2xl font-bold text-2xl shadow-[0_6px_0_rgba(0,0,0,0.3)]`;
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(opt, q.ans);
+                container.appendChild(btn);
+            });
+
+            document.getElementById('progress-bar').style.width = `${(state.currentIndex / 10) * 100}%`;
+        }
+
+        async function checkAnswer(selected, correct) {
+            if (state.isProcessing) return;
+            state.isProcessing = true;
+            
+            const isCorrect = selected.toUpperCase() === correct.toUpperCase();
+            if (isCorrect) {
+                playSound(successAudio);
+                state.logs.push({
+                    "Ad": state.firstName, 
+                    "Soyad": state.lastName,
+                    "Soru No": state.currentIndex + 1, 
+                    "Sonuç": "DOĞRU", 
+                    "Puan": 10,
+                    "Tarih": new Date().toLocaleString()
+                });
+                showFeedback("HARİKA!", "✅", "text-blue-400", "Rozet kazandın! Rozetini puzzle'ı tamamlamak için kullan!");
+                confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+                await new Promise(r => setTimeout(r, 2000));
+                hideFeedback();
+                const pView = document.getElementById('puzzle-view');
+                pView.classList.add('active');
+                document.getElementById(`slot-${state.currentIndex}`).classList.add('clickable');
+                state.waitingForPuzzleClick = true;
+            } else {
+                playSound(failAudio);
+                state.logs.push({
+                    "Ad": state.firstName, 
+                    "Soyad": state.lastName,
+                    "Soru No": state.currentIndex + 1, 
+                    "Sonuç": "YANLIŞ", 
+                    "Puan": 0,
+                    "Tarih": new Date().toLocaleString()
+                });
+                triggerMudEffect();
+                showFeedback("EYVAH!", "🦠", "text-red-500", "Yanlış cevap! Mikroplar odayı çamurla kirletti!");
+                document.getElementById('main-card').classList.add('shake');
+                setTimeout(() => {
+                    document.getElementById('main-card').classList.remove('shake');
+                    hideFeedback();
+                    state.currentIndex++;
+                    state.isProcessing = false;
+                    renderQuestion();
+                }, 2500);
+            }
+        }
+
+        async function handleSlotClick(index) {
+            if (!state.waitingForPuzzleClick || index !== state.currentIndex) return;
+            state.waitingForPuzzleClick = false;
+            document.getElementById(`slot-${index}`).classList.remove('clickable');
+            document.getElementById(`piece-${index}`).classList.add('placed');
+            state.pieces++;
+            await new Promise(r => setTimeout(r, 1200));
+            document.getElementById('puzzle-view').classList.remove('active');
+            state.currentIndex++;
+            state.isProcessing = false;
+            renderQuestion();
+        }
+
+        function showFeedback(text, icon, colorClass, subText) {
+            const overlay = document.getElementById('feedback-overlay');
+            const hero = document.getElementById('feedback-hero');
+            hero.src = text === "HARİKA!" 
+                ? "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
+                : "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png";
+            hero.style.borderColor = text === "HARİKA!" ? "#3b82f6" : "#ef4444";
+            document.getElementById('feedback-text').innerText = text;
+            document.getElementById('feedback-text').className = `text-6xl font-bold ${colorClass}`;
+            document.getElementById('feedback-sub').innerText = subText;
+            overlay.style.display = 'flex';
+        }
+a
+        function hideFeedback() { document.getElementById('feedback-overlay').style.display = 'none'; }
+
+        function endGame() {
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('question-view').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            const pView = document.getElementById('puzzle-view');
+            pView.classList.add('active');
+            document.getElementById('puzzle-ghost').style.opacity = '0';
+            const stats = document.getElementById('final-stats');
+            if (state.pieces === 10) {
+                document.getElementById('final-title').innerText = "TEBRİKLER!";
+                stats.innerHTML = `<p class="uppercase font-bold text-white mb-2">KAHRAMAN: ${state.userId}</p>
+                                   <p>Harika bir iş çıkardın! Tüm parçaları topladın ve odayı mikroplardan tamamen temizledin!</p>`;
+                confetti({ particleCount: 300, spread: 100 });
+            } else {
+                document.getElementById('final-title').innerText = "OYUN BİTTİ";
+                stats.innerHTML = `<p class="uppercase font-bold text-white mb-4">KAHRAMAN: ${state.userId}</p>
+                                   <p class="text-blue-300">Puzzle henüz tamamlanmadı! El yıkama adımlarını tekrar gözden geçir. Bir sonraki testte görüşmek üzere.</p>`;
+            }
+        }
+
+        function downloadResults() {
+            if (state.logs.length === 0) return;
+            const ws = XLSX.utils.json_to_sheet(state.logs);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Rapor");
+            const now = new Date();
+            const dateStr = `${now.getDate()}-${now.getMonth()+1}-${now.getFullYear()}`;
+            const fileName = `${state.firstName}-${state.lastName}-${dateStr}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+    </script>
+</body>
+</html>
