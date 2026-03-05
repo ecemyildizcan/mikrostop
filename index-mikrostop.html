@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mikrop Avcıları: Puzzle Görevi</title>
+    <!-- Baloo 2 fontu yüklendi -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -95,7 +96,7 @@
             position: absolute;
             inset: 0;
             background-image: url('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/end.JPEG');
-            background-size: 500% 200%; /* 5x2 olduğu için */
+            background-size: 500% 200%;
             opacity: 0;
             transform: scale(2) rotate(20deg);
             transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -214,7 +215,7 @@
             box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
         }
 
-        /* Animasyonlar */
+        /* Karakter Animasyonları */
         .bounce-mikrop { animation: mini-bounce-right 2s infinite ease-in-out; }
         .bounce-kahraman { animation: mini-bounce-left 2s infinite ease-in-out; animation-delay: 0.5s; }
         .hero-breathing { animation: breathing 3s infinite ease-in-out; transform-origin: bottom left; }
@@ -270,7 +271,7 @@
             <div id="badge-display" class="text-2xl"></div>
             <div class="text-right">
                 <span id="display-name" class="text-blue-400 text-[12px] font-bold block uppercase">Kullanıcı</span>
-                <span class="text-slate-400 text-[10px] font-bold">PUZZLE: <span id="puzzle-count">0</span>/10</span>
+                <span class="text-slate-400 text-[11px] font-bold">SORU: <span id="question-count-display">1</span>/10</span>
             </div>
         </div>
 
@@ -298,10 +299,21 @@
         </div>
 
         <!-- Final -->
-        <div id="result-screen" class="hidden absolute inset-0 z-[300] bg-slate-900 flex flex-col items-center justify-center p-8 text-center">
-            <h2 id="final-title" class="text-7xl font-bold text-yellow-400 mb-6 uppercase">OYUN BİTTİ</h2>
-            <div id="final-icon" class="text-9xl mb-8">🧼</div>
-            <div id="final-stats" class="text-2xl text-white mb-10 space-y-3 bg-slate-800/50 p-8 rounded-3xl border-2 border-white/10 max-w-2xl"></div>
+        <div id="result-screen" class="hidden absolute inset-0 z-[300] bg-slate-900 flex flex-col items-center justify-center p-8 text-center overflow-y-auto">
+            <!-- Attribution Text - Font size increased (~2pt) -->
+            <div class="text-slate-400 text-lg md:text-xl mb-6 space-y-1 font-medium italic opacity-90 leading-relaxed max-w-xl">
+                <p>Test tasarımı</p>
+                <p>Marmara Üniversitesi Sağlık Bilimleri Enstitüsü</p>
+                <p>Çocuk Sağlığı ve Hastalıkları Hemşireliği</p>
+                <p>Doç. Dr. Çağrı Çövener Özçelik</p>
+                <p>Buse Sarı</p>
+            </div>
+
+            <!-- Title - Font size decreased (~4pt) -->
+            <h2 id="final-title" class="text-5xl md:text-6xl font-bold text-yellow-400 mb-6 uppercase">OYUN BİTTİ</h2>
+            <div id="final-icon" class="text-8xl md:text-9xl mb-8">🧼</div>
+            <div id="final-stats" class="text-xl md:text-2xl text-white mb-10 space-y-3 bg-slate-800/50 p-8 rounded-3xl border-2 border-white/10 max-w-2xl w-full"></div>
+            
             <div class="flex flex-col gap-4 w-full max-w-xs">
                 <button onclick="downloadResults()" class="btn-game bg-amber-500 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-[0_6px_0_rgb(180,83,9)] uppercase">📊 RAPORU İNDİR</button>
                 <button onclick="location.reload()" class="btn-game bg-green-600 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-[0_6px_0_rgb(22,101,52)] uppercase">TEKRAR DENE</button>
@@ -310,21 +322,38 @@
     </div>
 
     <script>
+        // Ses Efektleri (Hata yakalamalı)
+        const successAudio = new Audio('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/sounds/dragon-studio-crowd-cheer-406646.mp3');
+        const failAudio = new Audio('https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/sounds/eritnhut1992-buzzer-or-wrong-answer-20582.mp3');
+        successAudio.preload = "auto";
+        failAudio.preload = "auto";
+        successAudio.load();
+        failAudio.load();
+
+        const playSound = async (audio) => {
+            try {
+                audio.currentTime = 0;
+                await audio.play();
+            } catch (e) {
+                console.warn("Ses çalınamadı:", e);
+            }
+        };
+
         const questionsData = [
-            { id: 1, q: "El yıkamanın temel amacı _________ kurtulmaktır.", opts: ["Kirden", "Kötü Kokudan", "Mikroplardan"], ans: "Mikroplardan", type: "BD" },
-            { id: 2, q: "Ellerimizi sadece kirli görünce yıkamalıyız.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ", type: "DY" },
-            { id: 3, q: "El yıkamaya başlamadan önce ellerimizi önce _________.", opts: ["Sabunlarız", "Kurularız", "Islatırız"], ans: "Islatırız", type: "BD" },
-            { id: 4, q: "Tırnakların içi kir ve mikropla dolabilir, bu yüzden yıkanmalıdır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU", type: "DY" },
-            { id: 5, q: "El yıkarken mikropların EN ÇOK saklandığı yer hangisidir?", opts: ["Avuç İçi", "Parmak Araları", "El Üstü"], ans: "Parmak Araları", type: "CS" },
-            { id: 6, q: "Hangisi doğru el yıkama sırasını gösterir?", opts: [
-                "Sabunu Al → Durula → Parmak Arası → Islat",
-                "Ellerini Islat → Sabun Al → Parmak Arası → Durula",
-                "Durula → Sabun Al → Islat → Parmak Arası"
-            ], ans: "Ellerini Islat → Sabun Al → Parmak Arası → Durula", type: "CS" },
-            { id: 7, q: "Ellerimizi yıkarken kaça kadar saymalıyız?", opts: ["5", "10", "15"], ans: "15", type: "CS" },
-            { id: 8, q: "Elleri yıkarken sadece su kullanmak mikropları tamamen yok eder.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ", type: "DY" },
-            { id: 9, q: "Sabunla el yıkadığımızda bizi hasta edebilen _________ mikroplar uzaklaşır.", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici", type: "BD" },
-            { id: 10, q: "Elleri sabunlarken parmak aralarını birbirine sürtmek temizliği artırır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU", type: "DY" }
+            { id: 1, q: "El yıkamanın temel amacı _________ kurtulmaktır.", opts: ["Kirden", "Kötü Kokudan", "Mikroplardan"], ans: "Mikroplardan" },
+            { id: 2, q: "Ellerimizi sadece kirli görünce yıkamalıyız.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+            { id: 3, q: "El yıkamaya başlamadan önce ellerimizi önce _________.", opts: ["Sabunlarız", "Kurularız", "Islatırız"], ans: "Islatırız" },
+            { id: 4, q: "Tırnakların içi kir ve mikropla dolabilir, bu yüzden yıkanmalıdır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" },
+            { id: 5, q: "El yıkarken mikropların EN ÇOK saklandığı yer hangisidir?", opts: ["Avuç İçi", "Parmak Araları", "El Üstü"], ans: "Parmak Araları" },
+            { id: 6, q: "Aşağıdakilerden hangisi doğru el yıkama sırasını gösterir?", opts: [
+                "Sabunu Al → Durula → Parmak aralarını yıka → Islat",
+                "Ellerini Islat → Sabun Al → Parmak aralarını yıka → Durula",
+                "Durula → Sabun Al → Islat → Parmak aralarını yıka"
+            ], ans: "Ellerini Islat → Sabun Al → Parmak aralarını yıka → Durula" },
+            { id: 7, q: "Ellerimizi yıkarken kaça kadar saymalıyız?", opts: ["5", "10", "15"], ans: "15" },
+            { id: 8, q: "Elleri yıkarken sadece su kullanmak mikropları tamamen yok eder.", opts: ["DOĞRU", "YANLIŞ"], ans: "YANLIŞ" },
+            { id: 9, q: "Sabunla el yıkadığımızda bizi hasta edebilen _________ mikroplar uzaklaşır.", opts: ["Kalıcı", "Geçici", "Yararlı"], ans: "Geçici" },
+            { id: 10, q: "Elleri sabunlarken parmak aralarını birbirine sürtmek temizliği artırır.", opts: ["DOĞRU", "YANLIŞ"], ans: "DOĞRU" }
         ];
 
         let state = {
@@ -352,7 +381,6 @@
                 piece.className = 'puzzle-piece';
                 piece.id = `piece-${i}`;
                 
-                // 5x2 background calculation
                 const col = i % 5;
                 const row = Math.floor(i / 5);
                 piece.style.backgroundPosition = `${col * 25}% ${row * 100}%`;
@@ -410,7 +438,8 @@
             }
 
             const q = questionsData[state.currentIndex];
-            document.getElementById('question-num').innerText = `SORU ${q.id}`;
+            document.getElementById('question-num').innerText = `SORU ${state.currentIndex + 1}`;
+            document.getElementById('question-count-display').innerText = state.currentIndex + 1;
             document.getElementById('question-text').innerText = q.q;
             
             const container = document.getElementById('options-container');
@@ -433,38 +462,37 @@
             state.isProcessing = true;
             
             const isCorrect = selected.toUpperCase() === correct.toUpperCase();
-            const currentQ = questionsData[state.currentIndex];
-
             if (isCorrect) {
-                state.score += 100;
-                
+                playSound(successAudio);
                 state.logs.push({
-                    "Ad": state.firstName, "Soyad": state.lastName,
-                    "Soru No": currentQ.id, "Sonuç": "DOĞRU", "Puan": 100,
+                    "Ad": state.firstName, 
+                    "Soyad": state.lastName,
+                    "Soru No": state.currentIndex + 1, 
+                    "Sonuç": "DOĞRU", 
+                    "Puan": 10,
                     "Tarih": new Date().toLocaleString()
                 });
-
                 showFeedback("HARİKA!", "✅", "text-blue-400", "Rozet kazandın! Rozetini puzzle'ı tamamlamak için kullan!");
                 confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
-                
                 await new Promise(r => setTimeout(r, 2000));
                 hideFeedback();
-
                 const pView = document.getElementById('puzzle-view');
                 pView.classList.add('active');
                 document.getElementById(`slot-${state.currentIndex}`).classList.add('clickable');
                 state.waitingForPuzzleClick = true;
             } else {
+                playSound(failAudio);
                 state.logs.push({
-                    "Ad": state.firstName, "Soyad": state.lastName,
-                    "Soru No": currentQ.id, "Sonuç": "YANLIŞ", "Puan": 0,
+                    "Ad": state.firstName, 
+                    "Soyad": state.lastName,
+                    "Soru No": state.currentIndex + 1, 
+                    "Sonuç": "YANLIŞ", 
+                    "Puan": 0,
                     "Tarih": new Date().toLocaleString()
                 });
-
                 triggerMudEffect();
                 showFeedback("EYVAH!", "🦠", "text-red-500", "Yanlış cevap! Mikroplar odayı çamurla kirletti!");
                 document.getElementById('main-card').classList.add('shake');
-
                 setTimeout(() => {
                     document.getElementById('main-card').classList.remove('shake');
                     hideFeedback();
@@ -477,17 +505,12 @@
 
         async function handleSlotClick(index) {
             if (!state.waitingForPuzzleClick || index !== state.currentIndex) return;
-            
             state.waitingForPuzzleClick = false;
             document.getElementById(`slot-${index}`).classList.remove('clickable');
             document.getElementById(`piece-${index}`).classList.add('placed');
-            
             state.pieces++;
-            document.getElementById('puzzle-count').innerText = state.pieces;
-
             await new Promise(r => setTimeout(r, 1200));
             document.getElementById('puzzle-view').classList.remove('active');
-            
             state.currentIndex++;
             state.isProcessing = false;
             renderQuestion();
@@ -496,12 +519,10 @@
         function showFeedback(text, icon, colorClass, subText) {
             const overlay = document.getElementById('feedback-overlay');
             const hero = document.getElementById('feedback-hero');
-            
             hero.src = text === "HARİKA!" 
                 ? "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/kahraman.png" 
                 : "https://raw.githubusercontent.com/ecemyildizcan/mikrostop/main/asserts/mikrop.png";
             hero.style.borderColor = text === "HARİKA!" ? "#3b82f6" : "#ef4444";
-
             document.getElementById('feedback-text').innerText = text;
             document.getElementById('feedback-text').className = `text-6xl font-bold ${colorClass}`;
             document.getElementById('feedback-sub').innerText = subText;
@@ -514,15 +535,13 @@
             document.getElementById('hud').classList.add('hidden');
             document.getElementById('question-view').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
-            
             const pView = document.getElementById('puzzle-view');
             pView.classList.add('active');
             document.getElementById('puzzle-ghost').style.opacity = '0';
-            
             const stats = document.getElementById('final-stats');
             if (state.pieces === 10) {
                 document.getElementById('final-title').innerText = "TEBRİKLER!";
-                stats.innerHTML = `<p class="uppercase font-bold text-white">KAHRAMAN: ${state.userId}</p>
+                stats.innerHTML = `<p class="uppercase font-bold text-white mb-2">KAHRAMAN: ${state.userId}</p>
                                    <p>Harika bir iş çıkardın! Tüm parçaları topladın ve odayı mikroplardan tamamen temizledin!</p>`;
                 confetti({ particleCount: 300, spread: 100 });
             } else {
@@ -537,7 +556,6 @@
             const ws = XLSX.utils.json_to_sheet(state.logs);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Rapor");
-            
             const now = new Date();
             const dateStr = `${now.getDate()}-${now.getMonth()+1}-${now.getFullYear()}`;
             const fileName = `${state.firstName}-${state.lastName}-${dateStr}.xlsx`;
